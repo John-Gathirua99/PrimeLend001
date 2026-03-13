@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% block title %}Loan #{{ loan.id }} — Manual Review{% endblock %}
+
+{% block extra_css %}
+<style>
+  .review-page { font-family: 'Inter', sans-serif; }
+
+  /* ── header strip ── */
+  .rv-header {
+    background: #0f172a; border-radius: 16px;
+    padding: 1.5rem 2rem; margin-bottom: 1.5rem;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  }
+  .rv-header h2 { font-family: 'Playfair Display', serif; color: #fff; margin: 0; font-size: 1.4rem; }
+  .rv-back { color: #94a3b8; text-decoration: none; font-size: 0.82rem; display: flex; align-items: center; gap: 0.35rem; }
+  .rv-back:hover { color: #d97706; }
+
+  .rv-badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.35rem 0.9rem; border-radius: 99px;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .rv-badge.pending  { background: #fef3c7; color: #92400e; }
+  .rv-badge.approved { background: #dcfce7; color: #166534; }
+  .rv-badge.rejected { background: #fee2e2; color: #991b1b; }
+
+  /* ── two-column grid ── */
+  .rv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+  @media (max-width: 768px) { .rv-grid { grid-template-columns: 1fr; } }
+
+  /* ── panel ── */
+  .rv-panel {
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 14px; padding: 1.4rem 1.6rem;
+  }
+  .rv-panel-title {
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: #64748b; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .rv-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 0.45rem 0; border-bottom: 1px solid #f1f5f9; font-size: 0.83rem; }
+  .rv-row:last-child { border: none; }
+  .rv-row-lbl { color: #64748b; }
+  .rv-row-val { font-weight: 600; color: #0f172a; text-align: right; max-width: 60%; }
+
+  /* ── OCR issues ── */
+  .rv-issues { list-style: none; padding: 0; margin: 0; }
+  .rv-issues li {
+    display: flex; gap: 0.5rem; align-items: flex-start;
+    font-size: 0.82rem; color: #92400e;
+    background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 8px; padding: 0.55rem 0.8rem; margin-bottom: 0.5rem;
+  }
+  .rv-issues li::before { content: '⚠'; flex-shrink: 0; }
+
+  /* ── ID doc viewer ── */
+  .rv-docs { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .rv-doc-wrap { flex-shrink: 0; }
+  .rv-doc-lbl { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin-bottom: 0.4rem; }
+  .rv-doc-img-wrap {
+    width: 160px; height: 100px;
+    background: #f1f5f9; border: 2px solid #e2e8f0; border-radius: 8px;
+    overflow: hidden; cursor: zoom-in; transition: border-color 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .rv-doc-img-wrap:hover { border-color: #d97706; }
+  .rv-doc-img {
+    width: 160px; height: 100px;
+    object-fit: contain; display: block;
+  }
+  .rv-doc-none { width: 160px; height: 100px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 8px; color: #94a3b8; font-size: 0.72rem; text-align:center; }
+
+  /* ── KYC face comparison ── */
+  .rv-kyc-panel { border-radius:14px; padding:1.25rem 1.4rem; margin-bottom:1.25rem; border:1.5px solid #bbf7d0; background:#f0fdf4; }
+  .rv-kyc-panel.fail { background:#fff1f2; border-color:#fecdd3; }
+  .rv-kyc-panel.warn { background:#fefce8; border-color:#fef08a; }
+  .rv-kyc-faces { display:grid; grid-template-columns:1fr auto 1fr; gap:1rem; align-items:center; margin:1rem 0; }
+  .rv-kyc-face { text-align:center; }
+  .rv-kyc-face-lbl { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#64748b; margin-bottom:0.5rem; }
+  .rv-kyc-score { display:inline-flex; align-items:center; gap:0.4rem; padding:0.3rem 0.85rem; border-radius:99px; font-size:0.72rem; font-weight:700; }
+  .rv-kyc-score.match { background:#dcfce7; color:#166534; }
+  .rv-kyc-score.fail  { background:#fee2e2; color:#991b1b; }
+  .rv-kyc-score.none  { background:#f1f5f9; color:#64748b; }
+  .rv-kyc-bar-track { height:6px; background:#e2e8f0; border-radius:99px; margin:0.4rem auto; overflow:hidden; width:60px; }
+  .rv-kyc-bar-fill  { height:100%; border-radius:99px; background:linear-gradient(90deg,#16a34a,#22c55e); }
+
+  /* ── action panels ── */
+  .rv-action-panel { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.4rem 1.6rem; margin-top: 1.25rem; }
+  .rv-action-title { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin-bottom: 1rem; }
+
+  .rv-form-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; }
+  .rv-form-group { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 140px; }
+  .rv-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; }
+  .rv-input {
+    padding: 0.6rem 0.85rem; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 0.88rem; color: #0f172a; outline: none;
+    transition: border-color 0.2s;
+  }
+  .rv-input:focus { border-color: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,0.1); }
+  .rv-textarea { min-height: 70px; resize: vertical; }
+
+  .rv-btn-approve {
+    padding: 0.65rem 1.5rem; background: #16a34a; color: #fff;
+    border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: background 0.2s; white-space: nowrap;
+  }
+  .rv-btn-approve:hover { background: #15803d; }
+  .rv-btn-reject {
+    padding: 0.65rem 1.5rem; background: #dc2626; color: #fff;
+    border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: background 0.2s; white-space: nowrap;
+  }
+  .rv-btn-reject:hover { background: #b91c1c; }
+
+  /* ── lightbox ── */
+  #lightbox {
+    display:none; position:fixed; inset:0; z-index:9999;
+    background:rgba(0,0,0,0.92);
+    align-items:center; justify-content:center;
+    cursor:zoom-out; padding:1.5rem;
+  }
+  #lightbox.on { display:flex; }
+  #lightboxImg {
+    max-width:90vw !important; max-height:85vh !important;
+    width:auto !important; height:auto !important;
+    min-width:unset !important; min-height:unset !important;
+    object-fit:contain !important;
+    display:block !important;
+    margin:auto !important;
+    border-radius:10px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  }
+  #lightbox-hint {
+    position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%);
+    color:rgba(255,255,255,0.45); font-size:0.72rem; pointer-events:none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="review-page">
+
+  <!-- Header -->
+  <div class="rv-header">
+    <div>
+      <a href="{% url 'admin_loan_dashboard' %}" class="rv-back">← Back to Dashboard</a>
+      <h2 class="mt-2">Loan #{{ loan.id }} — Manual Review</h2>
+      <a href="{% url 'loan_ocr_debug' loan.id %}
+    {% if loan.status == 'Pending KYC' or not loan.kyc_face_verified %}
+    <a href="{% url 'loan_review_thread' loan.id %}" class="btn btn-info btn-sm me-1"><i class="bi bi-chat-dots"></i> Review Thread</a>
+    <a href="{% url 'admin_kyc_approve' loan.id %}" class="btn btn-warning btn-sm"><i class="bi bi-person-check"></i> Manual KYC</a>
+    {% endif %}"
+         style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.5rem;padding:0.35rem 1rem;background:#1e293b;border:1px solid rgba(245,166,35,0.3);border-radius:8px;color:#f5a623;font-size:0.75rem;text-decoration:none;">
+        🔬 View OCR &amp; KYC Debug
+      </a>
+    </div>
+    <span class="rv-badge {{ loan.status|lower }}">
+      {% if loan.status == 'Pending' %}⏳{% elif loan.status == 'Approved' %}✓{% else %}✗{% endif %}
+      {{ loan.status }}
+    </span>
+  </div>
+
+  <!-- OCR issues banner -->
+  {% if ocr_issues %}
+  <div class="rv-panel mb-3" style="border-left: 4px solid #f59e0b;">
+    <div class="rv-panel-title" style="color:#92400e;">⚠ ID Verification Issues — Requires Manual Review</div>
+    <ul class="rv-issues">
+      {% for issue in ocr_issues %}
+      <li>{{ issue }}</li>
+      {% endfor %}
+    </ul>
+    <p style="font-size:0.78rem;color:#64748b;margin:0.75rem 0 0;">
+      Review the uploaded ID documents below. If documents look genuine and details match, you can approve.
+    </p>
+  </div>
+  {% endif %}
+
+  <div class="rv-grid">
+
+    <!-- Left: Applicant info + ID docs -->
+    <div>
+      <!-- Applicant details -->
+      <div class="rv-panel mb-3">
+        <div class="rv-panel-title">👤 Applicant Details</div>
+        <div class="rv-row"><span class="rv-row-lbl">Full Name</span><span class="rv-row-val">{{ loan.full_name }}</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Username</span><span class="rv-row-val">{{ loan.user.username }}</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Email</span><span class="rv-row-val">{{ loan.user.email }}</span></div>
+        {% if profile %}
+        <div class="rv-row"><span class="rv-row-lbl">Phone</span><span class="rv-row-val">{{ profile.phone_number|default:"—" }}</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Date of Birth</span><span class="rv-row-val">{{ profile.date_of_birth|default:"—" }}</span></div>
+        {% endif %}
+        <div class="rv-row"><span class="rv-row-lbl">ID Number Submitted</span><span class="rv-row-val">{{ loan.id_number }}</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Employment</span><span class="rv-row-val">{{ loan.employment_status }}</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Monthly Income</span><span class="rv-row-val">KES {{ loan.monthly_income|floatformat:0 }}</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Applied</span><span class="rv-row-val">{{ loan.created_at|date:"d M Y, H:i" }}</span></div>
+      </div>
+
+      <!-- KYC Face Comparison -->
+      {% if loan.kyc_selfie %}
+      <div class="rv-kyc-panel {% if loan.kyc_face_verified %}{% elif loan.kyc_face_verified == False %}fail{% else %}warn{% endif %} mb-3">
+        <div class="rv-panel-title">
+          👤 Face KYC
+          {% if loan.kyc_face_verified %}<span class="rv-kyc-score match ms-2">✓ Matched</span>
+          {% elif loan.kyc_face_verified == False %}<span class="rv-kyc-score fail ms-2">✗ No Match</span>
+          {% else %}<span class="rv-kyc-score none ms-2">— Not Verified</span>{% endif %}
+        </div>
+        <div class="rv-kyc-faces">
+          <div class="rv-kyc-face">
+            <div class="rv-kyc-face-lbl">Live Selfie</div>
+            <img src="{{ loan.kyc_selfie.url }}" onclick="openLightbox(this.src)"
+                 style="width:90px!important;height:90px!important;border-radius:50%!important;object-fit:cover!important;display:block!important;margin:0 auto!important;cursor:zoom-in;border:3px solid {% if loan.kyc_face_verified %}#16a34a{% elif loan.kyc_face_verified == False %}#dc2626{% else %}#e2e8f0{% endif %}!important;">
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:1.2rem;">{% if loan.kyc_face_verified %}✅{% elif loan.kyc_face_verified == False %}❌{% else %}❓{% endif %}</div>
+            {% if loan.kyc_confidence %}
+            <div style="font-size:0.65rem;color:#64748b;margin-top:0.2rem;">{{ loan.kyc_confidence|floatformat:0 }}%</div>
+            <div class="rv-kyc-bar-track">
+              <div class="rv-kyc-bar-fill" style="width:{{ loan.kyc_confidence|floatformat:0 }}%;{% if not loan.kyc_face_verified %}background:linear-gradient(90deg,#dc2626,#f87171);{% endif %}"></div>
+            </div>
+            {% endif %}
+          </div>
+          <div class="rv-kyc-face">
+            <div class="rv-kyc-face-lbl">ID Document</div>
+            {% if loan.id_document_front %}
+            <img src="{{ loan.id_document_front.url }}" onclick="openLightbox(this.src)"
+                 style="width:90px!important;height:90px!important;border-radius:50%!important;object-fit:cover!important;object-position:center top!important;display:block!important;margin:0 auto!important;cursor:zoom-in;border:3px solid {% if loan.kyc_face_verified %}#16a34a{% elif loan.kyc_face_verified == False %}#dc2626{% else %}#e2e8f0{% endif %}!important;">
+            {% endif %}
+          </div>
+        </div>
+        <p style="font-size:0.72rem;color:#64748b;margin:0;">
+          {% if loan.kyc_face_verified %}AI confirmed match. Visually confirm below before approving.
+          {% elif loan.kyc_face_verified == False %}AI detected mismatch. Review carefully.
+          {% else %}KYC not completed. Verify identity manually.{% endif %}
+        </p>
+      </div>
+      {% endif %}
+
+      <!-- Uploaded ID documents -->
+      <div class="rv-panel">
+        <div class="rv-panel-title">🪪 Uploaded ID Documents</div>
+        <div class="rv-docs">
+          <div class="rv-doc-wrap">
+            <div class="rv-doc-lbl">Front of ID</div>
+            {% if loan.id_document_front %}
+            <div class="rv-doc-img-wrap" onclick="openLightbox('{{ loan.id_document_front.url }}')"
+                 style="width:160px;height:100px;overflow:hidden;border:2px solid #e2e8f0;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;cursor:zoom-in;flex-shrink:0;">
+              <img src="{{ loan.id_document_front.url }}" alt="ID Front"
+                   style="width:160px!important;height:100px!important;max-width:160px!important;max-height:100px!important;min-width:unset!important;min-height:unset!important;object-fit:contain!important;display:block!important;margin:0!important;padding:0!important;border:none!important;border-radius:0!important;">
+            </div>
+            {% else %}
+            <div class="rv-doc-none">No image uploaded</div>
+            {% endif %}
+          </div>
+          <div class="rv-doc-wrap">
+            <div class="rv-doc-lbl">Back of ID</div>
+            {% if loan.id_document_back %}
+            <div class="rv-doc-img-wrap" onclick="openLightbox('{{ loan.id_document_back.url }}')"
+                 style="width:160px;height:100px;overflow:hidden;border:2px solid #e2e8f0;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;cursor:zoom-in;flex-shrink:0;">
+              <img src="{{ loan.id_document_back.url }}" alt="ID Back"
+                   style="width:160px!important;height:100px!important;max-width:160px!important;max-height:100px!important;min-width:unset!important;min-height:unset!important;object-fit:contain!important;display:block!important;margin:0!important;padding:0!important;border:none!important;border-radius:0!important;">
+            </div>
+            {% else %}
+            <div class="rv-doc-none">No image uploaded</div>
+            {% endif %}
+          </div>
+        </div>
+        <p style="font-size:0.72rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0;">Click an image to enlarge.</p>
+      </div>
+    </div>
+
+    <!-- Right: Loan details + actions -->
+    <div>
+      <!-- Loan financials -->
+      <div class="rv-panel mb-3">
+        <div class="rv-panel-title">💰 Loan Details</div>
+        <div class="rv-row"><span class="rv-row-lbl">Qualified Amount</span><span class="rv-row-val">KES {{ loan.qualified_amount|floatformat:2 }}</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Interest Rate</span><span class="rv-row-val">{{ loan.interest_rate|floatformat:0 }}%</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Repayment Period</span><span class="rv-row-val">{{ loan.repayment_period }} months</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Credit History</span><span class="rv-row-val">{% if loan.credit_history %}Good{% else %}Bad/None{% endif %}</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Fraud Score</span><span class="rv-row-val" style="color:{% if loan.fraud_score > 0.5 %}#dc2626{% else %}#16a34a{% endif %}">{{ loan.fraud_score|floatformat:0 }}%</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Credit Score</span><span class="rv-row-val">{{ loan.predicted_probability|floatformat:0 }}%</span></div>
+        <div class="rv-row"><span class="rv-row-lbl">Reason for Loan</span><span class="rv-row-val">{{ loan.reason_for_loan|default:"—" }}</span></div>
+      </div>
+
+      <!-- System decision note -->
+      <div class="rv-panel mb-3" style="background:#f8fafc;">
+        <div class="rv-panel-title">🤖 System Decision Note</div>
+        <p style="font-size:0.82rem;color:#475569;margin:0;line-height:1.6;">{{ loan.rejection_reason|default:"No system notes." }}</p>
+      </div>
+
+      <!-- Approve action -->
+      {% if loan.status == 'Pending' %}
+      <div class="rv-action-panel mb-3">
+        <div class="rv-action-title" style="color:#16a34a;">✓ Approve Loan</div>
+        <form method="POST" action="{% url 'admin_approve_loan' loan.id %}">
+            {% csrf_token %}
+          {% csrf_token %}
+          <input type="hidden" name="next" value="detail">
+          <div class="rv-form-row mb-3">
+            <div class="rv-form-group">
+              <label class="rv-label">Adjust Amount (KES)</label>
+              <input type="number" name="adjusted_amount" class="rv-input" placeholder="{{ loan.qualified_amount|floatformat:0 }}">
+            </div>
+            <div class="rv-form-group">
+              <label class="rv-label">Adjust Rate (%)</label>
+              <input type="number" name="adjusted_rate" class="rv-input" step="0.1" placeholder="{{ loan.interest_rate|floatformat:0 }}">
+            </div>
+          </div>
+          <div class="rv-form-group mb-3">
+            <label class="rv-label">Admin Note (optional)</label>
+            <textarea name="admin_note" class="rv-input rv-textarea" placeholder="e.g. Documents verified manually — ID photo matches applicant"></textarea>
+          </div>
+          <button type="submit" class="rv-btn-approve w-100">✓ Approve This Loan</button>
+        </form>
+      </div>
+
+      <!-- Reject action -->
+      <div class="rv-action-panel">
+        <div class="rv-action-title" style="color:#dc2626;">✗ Reject Loan</div>
+        <form method="POST" action="{% url 'admin_reject_loan' loan.id %}">
+            {% csrf_token %}
+          {% csrf_token %}
+          <input type="hidden" name="next" value="detail">
+          <div class="rv-form-group mb-3">
+            <label class="rv-label">Rejection Reason <span style="color:#dc2626">*</span></label>
+            <textarea name="rejection_reason" class="rv-input rv-textarea" placeholder="e.g. ID document does not match submitted details" required></textarea>
+          </div>
+          <button type="submit" class="rv-btn-reject w-100">✗ Reject This Loan</button>
+        </form>
+      </div>
+      {% else %}
+      <div class="rv-panel" style="text-align:center;padding:2rem;">
+        <div style="font-size:2rem;margin-bottom:0.5rem;">{% if loan.status == 'Approved' %}✅{% else %}❌{% endif %}</div>
+        <div style="font-weight:700;color:#0f172a;">This loan has been {{ loan.status|lower }}.</div>
+        {% if loan.approved_by %}<div style="font-size:0.78rem;color:#64748b;margin-top:0.3rem;">By {{ loan.approved_by.get_full_name|default:loan.approved_by.username }}</div>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:2rem;box-sizing:border-box;">
+    <img id="lightboxImg" src="" alt="ID Document"
+         style="max-width:88vw!important;max-height:82vh!important;width:auto!important;height:auto!important;min-width:unset!important;min-height:unset!important;object-fit:contain!important;display:block!important;margin:0 auto!important;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+  </div>
+  <div id="lightbox-hint">Click anywhere or press Esc to close</div>
+</div>
+
+<script>
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('on');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('on');
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeLightbox();
+});
+</script>
+{% endblock %}

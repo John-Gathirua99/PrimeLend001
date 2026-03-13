@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}Loan Application Result{% endblock %}
+
+{% block content %}
+
+<style>
+  .result-status-bar {
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .result-status-bar.approved { background: #dcfce7; border-left: 5px solid #16a34a; }
+  .result-status-bar.pending  { background: #fef3c7; border-left: 5px solid #d97706; }
+  .result-status-bar.rejected { background: #fee2e2; border-left: 5px solid #dc2626; }
+
+  .status-icon-circle {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+  .approved .status-icon-circle { background: #16a34a; color: #fff; }
+  .pending  .status-icon-circle { background: #d97706; color: #fff; }
+  .rejected .status-icon-circle { background: #dc2626; color: #fff; }
+
+  .amount-display {
+    text-align: center;
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-radius: 16px;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e2e8f0;
+  }
+  .amount-display .label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #64748b;
+    margin-bottom: 0.4rem;
+  }
+  .amount-display .value {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .amount-display .value .currency {
+    font-size: 1.1rem;
+    color: #64748b;
+    margin-right: 4px;
+  }
+
+  .breakdown-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 500px) { .breakdown-grid { grid-template-columns: 1fr; } }
+
+  .breakdown-cell {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+  }
+  .breakdown-cell.full { grid-column: span 2; background: #fffbeb; border-color: #fde68a; }
+  @media (max-width: 500px) { .breakdown-cell.full { grid-column: span 1; } }
+
+  .breakdown-cell .cell-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin-bottom: 0.3rem;
+  }
+  .breakdown-cell .cell-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .breakdown-cell.full .cell-value { font-size: 1.3rem; color: #d97706; }
+
+  .score-bar-wrap { margin-bottom: 1rem; }
+  .score-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 0.3rem;
+  }
+  .score-track {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .score-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.8s ease;
+  }
+
+  .risk-list {
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1.5rem;
+  }
+  .risk-list-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #dc2626;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+  .risk-list-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    font-size: 0.85rem;
+    color: #7f1d1d;
+    margin-bottom: 0.35rem;
+    line-height: 1.4;
+  }
+  .risk-list-item::before { content: "•"; color: #dc2626; flex-shrink: 0; }
+</style>
+
+<!-- Status Banner -->
+<div class="result-status-bar {% if result.status == 'Approved' %}approved{% elif result.status == 'Pending' %}pending{% else %}rejected{% endif %}">
+  <div class="status-icon-circle">
+    {% if result.status == "Approved" %}✓
+    {% elif result.status == "Pending" %}⏳
+    {% else %}✕{% endif %}
+  </div>
+  <div>
+    <h4 class="mb-0 fw-bold">
+      {% if result.status == "Approved" %}Congratulations, You're Approved!
+      {% elif result.status == "Pending" %}Application Under Review
+      {% else %}Application Not Approved{% endif %}
+    </h4>
+    <p class="mb-0 small text-muted">
+      {% if result.status == "Approved" %}Your loan has been pre-approved. Continue to accept terms.
+      {% elif result.status == "Pending" %}We'll notify you within 24 hours. {{ result.decision_reason }}
+      {% else %}{{ result.decision_reason }}{% endif %}
+    </p>
+  </div>
+</div>
+
+<!-- Qualified Amount -->
+<div class="amount-display">
+  <div class="label">Qualified Loan Amount</div>
+  <div class="value"><span class="currency">KES</span>{{ result.qualified_amount|floatformat:2 }}</div>
+</div>
+
+<!-- Breakdown (hide for rejected) -->
+{% if result.status != "Rejected" %}
+<div class="breakdown-grid">
+  <div class="breakdown-cell">
+    <div class="cell-label">Interest Rate</div>
+    <div class="cell-value">{% widthratio result.interest_rate 1 100 %}%</div>
+  </div>
+  <div class="breakdown-cell">
+    <div class="cell-label">Repayment Period</div>
+    <div class="cell-value">{{ result.repayment_period }} months</div>
+  </div>
+  <div class="breakdown-cell">
+    <div class="cell-label">Interest Amount</div>
+    <div class="cell-value">KES {{ result.interest_amount|floatformat:2 }}</div>
+  </div>
+  <div class="breakdown-cell">
+    <div class="cell-label">Total Payable</div>
+    <div class="cell-value">KES {{ result.total_payable|floatformat:2 }}</div>
+  </div>
+  <div class="breakdown-cell full">
+    <div class="cell-label">Monthly Repayment</div>
+    <div class="cell-value">KES {{ result.monthly_repayment|floatformat:2 }}</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Score Bars -->
+<div class="mb-4">
+  <div class="score-bar-wrap">
+    <div class="score-bar-label">
+      <span>Credit Score</span>
+      <span>{% widthratio result.credit_score 1 100 %}%</span>
+    </div>
+    <div class="score-track">
+      <div class="score-fill"
+           style="width:{% widthratio result.credit_score 1 100 %}%;
+                  background:{% if result.credit_score >= 0.75 %}#16a34a{% elif result.credit_score >= 0.5 %}#d97706{% else %}#dc2626{% endif %};">
+      </div>
+    </div>
+  </div>
+  <div class="score-bar-wrap">
+    <div class="score-bar-label">
+      <span>Fraud Risk</span>
+      <span>{% widthratio result.fraud_score 1 100 %}%</span>
+    </div>
+    <div class="score-track">
+      <div class="score-fill"
+           style="width:{% widthratio result.fraud_score 1 100 %}%;
+                  background:{% if result.fraud_score < 0.4 %}#16a34a{% elif result.fraud_score < 0.65 %}#d97706{% else %}#dc2626{% endif %};">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Risk Reasons -->
+{% if result.risk_reasons %}
+<div class="risk-list">
+  <div class="risk-list-title">⚠ Risk Signals Detected</div>
+  {% for reason in result.risk_reasons %}
+    <div class="risk-list-item">{{ reason }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Action Buttons -->
+<div class="d-flex gap-3 flex-wrap">
+  {% if result.status == "Approved" %}
+    {% if not result.terms_accepted %}
+      <form method="POST" action="{% url 'accept_terms' result.loan_id %}" class="w-100">
+        {% csrf_token %}
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="termsCheck" required>
+          <label class="form-check-label small" for="termsCheck">
+            I agree to repay KES {{ result.qualified_amount }} at {% widthratio result.interest_rate 1 100 %}% interest over {{ result.repayment_period }} months.
+          </label>
+        </div>
+        <button type="submit" class="btn btn-success px-4 py-2 fw-bold">
+          <i class="bi bi-check-circle me-1"></i> Accept Terms & Continue
+        </button>
+      </form>
+    {% elif not result.processing_fee_paid %}
+      <div class="alert alert-info w-100 mb-2">
+        <i class="bi bi-phone-fill me-1"></i> Pay the processing fee of <strong>KES {{ result.processing_fee }}</strong> via M-Pesa to activate your loan.
+      </div>
+      <a href="{% url 'pay_processing_fee' result.loan_id %}" class="btn btn-success px-4 py-2 fw-bold">
+        <i class="bi bi-phone me-1"></i> Pay Processing Fee via M-Pesa
+      </a>
+    {% else %}
+      <div class="alert alert-success w-100">
+        <i class="bi bi-check-circle-fill me-1"></i> Processing fee paid! Your loan is queued for disbursement.
+      </div>
+    {% endif %}
+    <a href="{% url 'loan_list' %}" class="btn btn-outline-secondary px-4 py-2">View My Loans</a>
+
+  {% elif result.status == "Pending" %}
+    <a href="{% url 'loan_list' %}" class="btn btn-warning px-4 py-2 text-dark fw-bold">
+      Track Application <i class="bi bi-clock ms-1"></i>
+    </a>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary px-4 py-2">Dashboard</a>
+
+  {% else %}
+    <a href="{% url 'loan_apply' %}" class="btn btn-danger px-4 py-2">
+      Try Again <i class="bi bi-arrow-repeat ms-1"></i>
+    </a>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary px-4 py-2">Dashboard</a>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,13 @@
+{% comment %}Loan jump widget — shared across all sections{% endcomment %}
+<div class="anav-jump">
+  <div class="anav-jump-label">⚡ JUMP TO ANY LOAN</div>
+  <div class="anav-jump-row">
+    <input type="number" id="loan-jump-id" class="anav-jump-input" placeholder="Loan ID e.g. 81">
+    <button class="anav-jump-btn" data-tpl="/loans/admin/loan/LOAN_ID/"
+      style="background:#3b82f6;color:#080c14;">DETAIL</button>
+    <button class="anav-jump-btn" data-tpl="/loans/admin/loan/LOAN_ID/ocr-debug/"
+      style="background:#f97316;color:#080c14;">OCR DEBUG</button>
+    <button class="anav-jump-btn" data-tpl="/loans/finalize/LOAN_ID/"
+      style="background:#10b981;color:#080c14;">FINALIZE</button>
+  </div>
+</div>

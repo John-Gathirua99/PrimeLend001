@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% block title %}Admin Nav — PrimeLend AI{% endblock %}
+
+{% block extra_css %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap');
+
+  .anav-wrap {
+    display: flex;
+    min-height: calc(100vh - 80px);
+    font-family: 'DM Mono', 'Courier New', monospace;
+    background: #080c14;
+    color: #c9d4e8;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 1rem;
+    box-shadow: 0 0 60px #0003;
+  }
+
+  /* ── Sidebar ── */
+  .anav-sidebar {
+    width: 72px;
+    background: #0c1220;
+    border-right: 1px solid #1a2540;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 1rem;
+    gap: 0.25rem;
+    position: sticky;
+    top: 0;
+    height: 100%;
+    min-height: 500px;
+  }
+  .anav-logo {
+    font-size: 1.2rem;
+    margin-bottom: 0.75rem;
+    filter: drop-shadow(0 0 8px #f59e0b);
+  }
+  .anav-tab {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    font-size: 1.3rem;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none;
+  }
+  .anav-tab:hover { background: #1a2540; }
+  .anav-tab.active { outline: 1.5px solid var(--tc); background: color-mix(in srgb, var(--tc) 15%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--tc) 30%, transparent); }
+  .anav-wordmark {
+    font-size: 0.55rem; color: #2a3a5a; writing-mode: vertical-rl;
+    letter-spacing: 3px; margin-bottom: 0.75rem; margin-top: auto;
+  }
+
+  /* ── Main ── */
+  .anav-main { flex: 1; padding: 1.5rem 1.75rem; overflow-y: auto; }
+
+  .anav-header {
+    display: flex; align-items: center; gap: 0.6rem;
+    border-bottom: 1px solid #1a2540; padding-bottom: 1rem; margin-bottom: 1.5rem;
+  }
+  .anav-header-icon { font-size: 1.5rem; }
+  .anav-header-title {
+    margin: 0; font-size: 1rem; font-weight: 500;
+    letter-spacing: 3px; text-transform: uppercase;
+  }
+  .anav-header-count {
+    margin-left: auto; font-size: 0.6rem; color: #2a3a5a; letter-spacing: 3px;
+  }
+
+  /* ── Cards grid ── */
+  .anav-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0.65rem; margin-bottom: 1.5rem;
+  }
+  @media (max-width: 600px) { .anav-grid { grid-template-columns: 1fr; } }
+
+  .anav-card {
+    background: #0d1525;
+    border: 1px solid #1a2540;
+    border-radius: 10px; padding: 0.85rem 1rem;
+    transition: all 0.15s; position: relative; overflow: hidden;
+  }
+  .anav-card:hover {
+    background: #111c30;
+    border-color: color-mix(in srgb, var(--tc) 40%, transparent);
+  }
+  .anav-card-line {
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: transparent; transition: background 0.15s;
+  }
+  .anav-card:hover .anav-card-line { background: var(--tc); }
+  .anav-card-top {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; margin-bottom: 0.3rem;
+  }
+  .anav-card-label {
+    font-size: 0.8rem; font-weight: 500; color: #8a9bc0; transition: color 0.15s;
+  }
+  .anav-card:hover .anav-card-label { color: #e2eaf8; }
+  .anav-badge {
+    font-size: 0.52rem; font-weight: 500; letter-spacing: 1.5px;
+    background: color-mix(in srgb, var(--tc) 18%, transparent);
+    color: var(--tc); padding: 2px 6px; border-radius: 4px;
+  }
+  .anav-card-desc { font-size: 0.68rem; color: #3a5070; margin-bottom: 0.65rem; }
+  .anav-card-actions { display: flex; gap: 0.4rem; }
+  .anav-open-btn {
+    flex: 1; padding: 0.3rem 0; border-radius: 5px; border: none;
+    background: var(--tc); color: #080c14; font-size: 0.68rem;
+    font-weight: 700; cursor: pointer; letter-spacing: 1px;
+    font-family: inherit; text-align: center; text-decoration: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .anav-open-btn:hover { opacity: 0.85; }
+  .anav-copy-btn {
+    padding: 0.3rem 0.6rem; border-radius: 5px;
+    border: 1px solid color-mix(in srgb, var(--tc) 30%, transparent);
+    background: transparent; color: #3a5070;
+    font-size: 0.65rem; cursor: pointer; font-family: inherit;
+  }
+  .anav-copy-btn:hover { color: var(--tc); }
+
+  /* ── Loan jump ── */
+  .anav-jump {
+    background: #0d1525; border: 1px solid #1a2540;
+    border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem;
+  }
+  .anav-jump-label {
+    font-size: 0.6rem; color: #3a5070; letter-spacing: 2px; margin-bottom: 0.6rem;
+  }
+  .anav-jump-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .anav-jump-input {
+    flex: 1; min-width: 80px; background: #080c14;
+    border: 1px solid #1a2540; border-radius: 6px;
+    padding: 0.4rem 0.75rem; color: #c9d4e8;
+    font-size: 0.8rem; outline: none; font-family: inherit;
+  }
+  .anav-jump-btn {
+    padding: 0.4rem 0.8rem; border-radius: 6px; border: none;
+    font-size: 0.65rem; font-weight: 700; cursor: pointer;
+    letter-spacing: 1px; font-family: inherit; text-decoration: none;
+    display: flex; align-items: center;
+  }
+
+  /* ── Related ── */
+  .anav-related-label {
+    font-size: 0.58rem; color: #2a3a5a; letter-spacing: 3px; margin-bottom: 0.6rem;
+  }
+  .anav-related-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .anav-related-btn {
+    padding: 0.4rem 0.9rem; border-radius: 6px;
+    font-size: 0.7rem; font-weight: 500; cursor: pointer;
+    letter-spacing: 1px; font-family: inherit;
+    border: 1px solid color-mix(in srgb, var(--tc) 30%, transparent);
+    background: color-mix(in srgb, var(--tc) 10%, transparent);
+    color: var(--tc); text-decoration: none;
+  }
+  .anav-related-btn:hover { background: color-mix(in srgb, var(--tc) 20%, transparent); }
+
+  /* ── Section panels (hidden/shown via JS) ── */
+  .anav-section { display: none; }
+  .anav-section.active { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="anav-wrap">
+
+  <!-- Sidebar -->
+  <div class="anav-sidebar">
+    <div class="anav-logo">🏗️</div>
+
+    <button class="anav-tab active" data-section="overview" style="--tc:#f59e0b" title="Overview">⚡</button>
+    <button class="anav-tab" data-section="loans" style="--tc:#3b82f6" title="Loans">🏦</button>
+    <button class="anav-tab" data-section="kyc" style="--tc:#10b981" title="KYC & ID">🪪</button>
+    <button class="anav-tab" data-section="debug" style="--tc:#f97316" title="OCR Debug">🔬</button>
+    <button class="anav-tab" data-section="wallet" style="--tc:#8b5cf6" title="Wallet">💳</button>
+    <button class="anav-tab" data-section="auth" style="--tc:#ec4899" title="Auth">🔐</button>
+
+    <div class="anav-wordmark">PRIMELEND</div>
+  </div>
+
+  <!-- Main -->
+  <div class="anav-main">
+
+    <!-- OVERVIEW -->
+    <div class="anav-section active" id="sec-overview" style="--tc:#f59e0b">
+      <div class="anav-header">
+        <span class="anav-header-icon">⚡</span>
+        <h2 class="anav-header-title" style="color:#f59e0b">Overview</h2>
+        <span class="anav-header-count">3 PAGES</span>
+      </div>
+      <div class="anav-grid">
+        {% include "loans/admin_nav_card.html" with label="Admin Dashboard" url="/loans/admin/dashboard/" desc="Loan stats & ML overview" badge="HOME" %}
+        {% include "loans/admin_nav_card.html" with label="Django Admin" url="/admin/" desc="Database & model admin" badge="SUPER" %}
+        {% include "loans/admin_nav_card.html" with label="Support Queue" url="/support/admin/" desc="User tickets & issues" %}
+      </div>
+      {% include "loans/admin_nav_jump.html" %}
+      <div class="anav-related-label">RELATED SECTIONS</div>
+      <div class="anav-related-btns">
+        <a href="#" class="anav-related-btn" style="--tc:#3b82f6" data-section="loans">🏦 LOANS →</a>
+        <a href="#" class="anav-related-btn" style="--tc:#10b981" data-section="kyc">🪪 KYC & ID →</a>
+      </div>
+    </div>
+
+    <!-- LOANS -->
+    <div class="anav-section" id="sec-loans" style="--tc:#3b82f6">
+      <div class="anav-header">
+        <span class="anav-header-icon">🏦</span>
+        <h2 class="anav-header-title" style="color:#3b82f6">Loans</h2>
+        <span class="anav-header-count">4 PAGES</span>
+      </div>
+      <div class="anav-grid">
+        {% include "loans/admin_nav_card.html" with label="All Loans" url="/loans/admin/loans/" desc="Browse & filter all applications" badge="LIST" %}
+        {% include "loans/admin_nav_card.html" with label="Apply (User)" url="/loans/apply/" desc="Loan application form" %}
+        {% include "loans/admin_nav_card.html" with label="My Loans (User)" url="/loans/my-loans/" desc="User loan history" %}
+        {% include "loans/admin_nav_card.html" with label="Finalize Loan #81" url="/loans/finalize/81/" desc="Run ML decision for #81" badge="ACTIVE" %}
+      </div>
+      {% include "loans/admin_nav_jump.html" %}
+      <div class="anav-related-label">RELATED SECTIONS</div>
+      <div class="anav-related-btns">
+        <a href="#" class="anav-related-btn" style="--tc:#10b981" data-section="kyc">🪪 KYC & ID →</a>
+        <a href="#" class="anav-related-btn" style="--tc:#f97316" data-section="debug">🔬 OCR DEBUG →</a>
+      </div>
+    </div>
+
+    <!-- KYC -->
+    <div class="anav-section" id="sec-kyc" style="--tc:#10b981">
+      <div class="anav-header">
+        <span class="anav-header-icon">🪪</span>
+        <h2 class="anav-header-title" style="color:#10b981">KYC & ID</h2>
+        <span class="anav-header-count">3 PAGES</span>
+      </div>
+      <div class="anav-grid">
+        {% include "loans/admin_nav_card.html" with label="KYC Board" url="/loans/admin/kyc-board/" desc="All selfies vs ID photos grid" badge="ADMIN" %}
+        {% include "loans/admin_nav_card.html" with label="KYC Verify (User)" url="/loans/kyc/" desc="Face verification page" %}
+        {% include "loans/admin_nav_card.html" with label="KYC Redo (User)" url="/loans/kyc/redo/" desc="Re-do face scan" %}
+      </div>
+      {% include "loans/admin_nav_jump.html" %}
+      <div class="anav-related-label">RELATED SECTIONS</div>
+      <div class="anav-related-btns">
+        <a href="#" class="anav-related-btn" style="--tc:#f97316" data-section="debug">🔬 OCR DEBUG →</a>
+        <a href="#" class="anav-related-btn" style="--tc:#3b82f6" data-section="loans">🏦 LOANS →</a>
+      </div>
+    </div>
+
+    <!-- DEBUG -->
+    <div class="anav-section" id="sec-debug" style="--tc:#f97316">
+      <div class="anav-header">
+        <span class="anav-header-icon">🔬</span>
+        <h2 class="anav-header-title" style="color:#f97316">OCR Debug</h2>
+        <span class="anav-header-count">4 PAGES</span>
+      </div>
+      <div class="anav-grid">
+        {% include "loans/admin_nav_card.html" with label="OCR Debug #80" url="/loans/admin/loan/80/ocr-debug/" desc="ID extraction debug for loan 80" %}
+        {% include "loans/admin_nav_card.html" with label="OCR Debug #81" url="/loans/admin/loan/81/ocr-debug/" desc="ID extraction debug for loan 81" badge="ACTIVE" %}
+        {% include "loans/admin_nav_card.html" with label="Loan Detail #80" url="/loans/admin/loan/80/" desc="Full admin view loan 80" %}
+        {% include "loans/admin_nav_card.html" with label="Loan Detail #81" url="/loans/admin/loan/81/" desc="Full admin view loan 81" badge="ACTIVE" %}
+      </div>
+      {% include "loans/admin_nav_jump.html" %}
+      <div class="anav-related-label">RELATED SECTIONS</div>
+      <div class="anav-related-btns">
+        <a href="#" class="anav-related-btn" style="--tc:#10b981" data-section="kyc">🪪 KYC & ID →</a>
+        <a href="#" class="anav-related-btn" style="--tc:#3b82f6" data-section="loans">🏦 LOANS →</a>
+      </div>
+    </div>
+
+    <!-- WALLET -->
+    <div class="anav-section" id="sec-wallet" style="--tc:#8b5cf6">
+      <div class="anav-header">
+        <span class="anav-header-icon">💳</span>
+        <h2 class="anav-header-title" style="color:#8b5cf6">Wallet</h2>
+        <span class="anav-header-count">2 PAGES</span>
+      </div>
+      <div class="anav-grid">
+        {% include "loans/admin_nav_card.html" with label="Wallet Dashboard" url="/wallet/" desc="Balance & quick actions" %}
+        {% include "loans/admin_nav_card.html" with label="Transactions" url="/wallet/transactions/" desc="Full transaction history" %}
+      </div>
+      {% include "loans/admin_nav_jump.html" %}
+      <div class="anav-related-label">RELATED SECTIONS</div>
+      <div class="anav-related-btns">
+        <a href="#" class="anav-related-btn" style="--tc:#3b82f6" data-section="loans">🏦 LOANS →</a>
+      </div>
+    </div>
+
+    <!-- AUTH -->
+    <div class="anav-section" id="sec-auth" style="--tc:#ec4899">
+      <div class="anav-header">
+        <span class="anav-header-icon">🔐</span>
+        <h2 class="anav-header-title" style="color:#ec4899">Auth</h2>
+        <span class="anav-header-count">3 PAGES</span>
+      </div>
+      <div class="anav-grid">
+        {% include "loans/admin_nav_card.html" with label="Login" url="/accounts/login/" desc="User login page" %}
+        {% include "loans/admin_nav_card.html" with label="Register" url="/accounts/register/" desc="New user registration" %}
+        {% include "loans/admin_nav_card.html" with label="Profile" url="/accounts/profile/" desc="Account settings" %}
+      </div>
+      {% include "loans/admin_nav_jump.html" %}
+      <div class="anav-related-label">RELATED SECTIONS</div>
+      <div class="anav-related-btns">
+        <a href="#" class="anav-related-btn" style="--tc:#8b5cf6" data-section="wallet">💳 WALLET →</a>
+      </div>
+    </div>
+
+  </div><!-- /anav-main -->
+</div><!-- /anav-wrap -->
+
+<script>
+(function(){
+  const tabs   = document.querySelectorAll('.anav-tab');
+  const secs   = document.querySelectorAll('.anav-section');
+  const relBtns = document.querySelectorAll('.anav-related-btn[data-section]');
+
+  function activate(id) {
+    tabs.forEach(t => {
+      t.classList.toggle('active', t.dataset.section === id);
+    });
+    secs.forEach(s => {
+      s.classList.toggle('active', s.id === 'sec-' + id);
+    });
+  }
+
+  tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.section)));
+  relBtns.forEach(b => b.addEventListener('click', e => {
+    e.preventDefault();
+    activate(b.dataset.section);
+  }));
+
+  // Copy URL buttons
+  document.querySelectorAll('.anav-copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(window.location.origin + btn.dataset.url);
+      const orig = btn.textContent;
+      btn.textContent = '✓';
+      btn.style.color = 'var(--tc)';
+      setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+    });
+  });
+
+  // Loan jump
+  const jumpInput = document.getElementById('loan-jump-id');
+  document.querySelectorAll('.anav-jump-btn[data-tpl]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = jumpInput ? jumpInput.value.trim() : '';
+      if (!id) return;
+      const url = btn.dataset.tpl.replace('LOAN_ID', id);
+      window.open(url, '_blank');
+    });
+  });
+})();
+</script>
+{% endblock %}

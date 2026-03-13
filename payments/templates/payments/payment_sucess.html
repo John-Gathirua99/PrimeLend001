@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Payment Successful{% endblock %}
+
+{% block content %}
+<div class="card p-5 text-center">
+    <h2 class="text-success">✅ Payment Successful</h2>
+    <p>Your processing fee has been received.</p>
+
+    <a href="{% url 'dashboard' %}" class="btn btn-primary mt-3">
+        Go to Dashboard
+    </a>
+</div>
+{% endblock %}

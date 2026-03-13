@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}My Wallet — PrimeLend AI{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── wallet page variables (match base.html) ── */
+  .wl { --navy: #0f172a; --gold: #d97706; --green: #16a34a; --red: #dc2626; --muted: #64748b; --border: #e2e8f0; }
+
+  /* ── Balance Hero ── */
+  .wl-hero {
+    background: var(--navy);
+    border-radius: 16px;
+    padding: 1.75rem 1.75rem 1.5rem;
+    margin-bottom: 1.5rem;
+    position: relative; overflow: hidden;
+  }
+  .wl-hero::after {
+    content: ''; position: absolute; top: -20px; right: -20px;
+    width: 130px; height: 130px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(217,119,6,0.25) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .wl-hero-badge {
+    display: inline-block; margin-bottom: 0.75rem;
+    background: rgba(217,119,6,0.18); border: 1px solid rgba(217,119,6,0.35);
+    color: #fbbf24; font-size: 0.6rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 0.2rem 0.6rem; border-radius: 99px;
+  }
+  .wl-hero-lbl { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255,255,255,0.4); margin-bottom: 0.3rem; }
+  .wl-hero-bal { font-family: 'Playfair Display', serif; font-size: 2.4rem; font-weight: 700; color: #fff; line-height: 1.1; margin-bottom: 0.2rem; }
+  .wl-hero-bal small { font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 500; color: rgba(255,255,255,0.45); margin-right: 0.3rem; vertical-align: middle; }
+  .wl-hero-user { font-size: 0.75rem; color: rgba(255,255,255,0.32); }
+
+  /* ── Quick links ── */
+  .wl-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+  @media(max-width:420px){ .wl-links { grid-template-columns: 1fr 1fr; } }
+  .wl-link-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+    padding: 0.9rem 0.5rem; border-radius: 12px; text-decoration: none;
+    border: 1.5px solid var(--border); background: #fafafa; color: var(--navy);
+    font-size: 0.7rem; font-weight: 600; transition: all 0.18s;
+  }
+  .wl-link-btn i { font-size: 1.1rem; color: var(--gold); }
+  .wl-link-btn:hover { border-color: var(--gold); background: #fffbeb; color: var(--gold); transform: translateY(-2px); }
+
+  /* ── Notice ── */
+  .wl-notice {
+    display: flex; align-items: center; gap: 0.6rem;
+    background: #fef3c7; border: 1px solid #fde68a; border-radius: 10px;
+    padding: 0.7rem 1rem; margin-bottom: 1.25rem;
+    font-size: 0.82rem; color: #92400e;
+  }
+  .wl-notice a { color: var(--gold); font-weight: 600; }
+
+  /* ── Sub-section header ── */
+  .wl-sub-hdr {
+    font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700;
+    color: var(--navy); margin: 0 0 1rem; display: flex; align-items: center; gap: 0.5rem;
+  }
+  .wl-sub-hdr a { margin-left: auto; font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 500; color: var(--gold); text-decoration: none; }
+
+  /* ── Loan repayment panel ── */
+  .wl-panel {
+    border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 1.25rem 1.35rem; margin-bottom: 1.5rem;
+  }
+  .wl-panel.amber { border-color: #fde68a; background: #fffbeb; }
+  .wl-panel.green  { border-color: #bbf7d0; background: #f0fdf4; }
+
+  .wl-stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .wl-stat-lbl { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.15rem; }
+  .wl-stat-val { font-size: 0.9rem; font-weight: 700; color: var(--navy); }
+
+  .wl-prog-track { height: 6px; background: #e2e8f0; border-radius: 99px; margin-bottom: 1.1rem; overflow: hidden; }
+  .wl-prog-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--green), var(--gold)); transition: width 0.8s ease; }
+
+  /* ── Forms ── */
+  .wl-form-row { display: flex; gap: 0.6rem; align-items: stretch; margin-bottom: 0.4rem; }
+  .wl-form-row input[type="number"] {
+    flex: 1; min-width: 0;
+    padding: 0.6rem 0.85rem;
+    border: 1.5px solid #d1d5db; border-radius: 10px;
+    font-size: 0.9rem; color: var(--navy); background: #fff;
+    outline: none; box-shadow: none;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    /* defeat bootstrap */
+    -webkit-appearance: none; appearance: none;
+  }
+  .wl-form-row input[type="number"]:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(217,119,6,0.12);
+  }
+  .wl-form-row input::placeholder { color: #9ca3af; }
+  .wl-btn {
+    padding: 0.6rem 1.25rem; border: none; border-radius: 10px;
+    font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap; transition: all 0.18s;
+    color: #fff;
+  }
+  .wl-btn.amber { background: var(--gold); }
+  .wl-btn.amber:hover { background: #b45309; }
+  .wl-btn.green  { background: var(--green); }
+  .wl-btn.green:hover  { background: #15803d; }
+  .wl-form-note { font-size: 0.7rem; color: var(--muted); }
+  .wl-no-loan { text-align: center; padding: 0.5rem 0; color: var(--muted); font-size: 0.85rem; }
+  .wl-no-loan a { color: var(--gold); font-weight: 600; text-decoration: none; }
+
+  /* ── Transactions ── */
+  .wl-divider { height: 1px; background: var(--border); margin: 0.25rem 0; }
+  .wl-txn { display: flex; align-items: center; gap: 0.85rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
+  .wl-txn:last-child { border: none; padding-bottom: 0; }
+  .wl-txn-ico { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+  .wl-txn-ico.cr { background: #dcfce7; }
+  .wl-txn-ico.dr { background: #fee2e2; }
+  .wl-txn-ico.nt { background: #f1f5f9; }
+  .wl-txn-info { flex: 1; min-width: 0; }
+  .wl-txn-desc { font-size: 0.83rem; font-weight: 500; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wl-txn-date { font-size: 0.68rem; color: var(--muted); margin-top: 0.05rem; }
+  .wl-txn-right { text-align: right; flex-shrink: 0; }
+  .wl-txn-amt  { font-size: 0.85rem; font-weight: 700; }
+  .wl-txn-amt.cr { color: var(--green); }
+  .wl-txn-amt.dr { color: var(--red); }
+  .wl-txn-tag  { font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.08rem; }
+  .wl-txn-tag.c { color: var(--green); }
+  .wl-txn-tag.p { color: var(--gold); }
+  .wl-txn-tag.f { color: var(--red); }
+  .wl-empty { text-align: center; padding: 1.5rem 0; color: var(--muted); font-size: 0.82rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wl">
+
+  <!-- Balance Hero -->
+  <div class="wl-hero">
+    <div class="wl-hero-badge"><i class="bi bi-circle-fill me-1" style="font-size:0.45rem;vertical-align:middle;"></i> Active Wallet</div>
+    <div class="wl-hero-lbl">Available Balance</div>
+    <div class="wl-hero-bal"><small>KES</small>{{ wallet.balance|floatformat:2 }}</div>
+    <div class="wl-hero-user"><i class="bi bi-person-circle me-1"></i>{{ request.user.get_full_name|default:request.user.username }}</div>
+  </div>
+
+  <!-- Phone warning -->
+  {% if not request.user.profile.phone_number %}
+  <div class="wl-notice">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    No phone number on your profile — <a href="{% url 'profile' %}">add one here</a> to enable M-Pesa withdrawals.
+  </div>
+  {% endif %}
+
+  <!-- Quick links -->
+  <div class="wl-links">
+    <a href="{% url 'transaction_history' %}" class="wl-link-btn"><i class="bi bi-clock-history"></i>History</a>
+    <a href="{% url 'download_user_statement' %}" class="wl-link-btn"><i class="bi bi-file-earmark-pdf"></i>Statement</a>
+    <a href="{% url 'user_wallet_history' %}" class="wl-link-btn"><i class="bi bi-search"></i>All Txns</a>
+  </div>
+
+  <!-- Loan Repayment -->
+  <div class="wl-sub-hdr"><i class="bi bi-lightning-charge-fill text-warning"></i> Loan Repayment</div>
+  <div class="wl-panel amber">
+    {% if active_loan %}
+      <div class="wl-stats-row">
+        <div><div class="wl-stat-lbl">Remaining</div><div class="wl-stat-val">KES {{ active_loan.amount_remaining|floatformat:2 }}</div></div>
+        <div><div class="wl-stat-lbl">Loan</div><div class="wl-stat-val">#{{ active_loan.id }}</div></div>
+        <div><div class="wl-stat-lbl">Period</div><div class="wl-stat-val">{{ active_loan.repayment_period }} mo</div></div>
+      </div>
+      <div class="wl-prog-track"><div class="wl-prog-fill" id="loanProg" style="width:0%"></div></div>
+      <form method="POST" action="{% url 'repay_loan' active_loan.id %}">
+        {% csrf_token %}
+        <div class="wl-form-row">
+          <input type="number" name="amount" placeholder="Repayment amount (KES)"
+                 min="1" max="{{ active_loan.amount_remaining }}" step="0.01" required>
+          <button type="submit" class="wl-btn amber"><i class="bi bi-send-fill me-1"></i>Repay</button>
+        </div>
+        <div class="wl-form-note">
+          Your wallet: <strong>KES {{ wallet.balance|floatformat:2 }}</strong> &nbsp;·&nbsp;
+          Remaining debt: <strong>KES {{ active_loan.amount_remaining|floatformat:2 }}</strong>
+        </div>
+      </form>
+    {% else %}
+      <div class="wl-no-loan">
+        <i class="bi bi-check-circle-fill text-success me-1"></i>No active loan.
+        <a href="{% url 'loan_apply' %}">Apply for a loan →</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Withdraw to M-Pesa -->
+  <div class="wl-sub-hdr"><i class="bi bi-phone-fill text-success"></i> Withdraw to M-Pesa</div>
+  <div class="wl-panel green">
+    <form method="POST" action="{% url 'withdraw_to_mpesa' %}">
+      {% csrf_token %}
+      <div class="wl-form-row">
+        <input type="number" name="amount" placeholder="Amount to withdraw (KES)" min="10" step="0.01" required>
+        <button type="submit" class="wl-btn green"><i class="bi bi-arrow-up-right me-1"></i>Withdraw</button>
+      </div>
+    </form>
+    <div class="wl-form-note mt-1">
+      {% if request.user.profile.phone_number %}
+        <i class="bi bi-check-circle-fill text-success me-1"></i>
+        Sending to: <strong>{{ request.user.profile.phone_number|slice:":4" }}****{{ request.user.profile.phone_number|slice:"-3:" }}</strong>
+        &nbsp;·&nbsp; <a href="{% url 'profile' %}" style="color:var(--muted);">Change</a>
+      {% else %}
+        <i class="bi bi-exclamation-circle-fill text-warning me-1"></i>
+        <a href="{% url 'profile' %}" style="color:var(--gold);font-weight:600;">Add a phone number</a> to withdraw funds.
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recent Transactions -->
+  <div class="wl-sub-hdr">
+    <i class="bi bi-arrow-left-right"></i> Recent Transactions
+    <a href="{% url 'transaction_history' %}">View all →</a>
+  </div>
+
+  {% if recent_txns %}
+    {% for txn in recent_txns %}
+    {% with t=txn.transaction_type %}
+    <div class="wl-txn">
+      <div class="wl-txn-ico {% if t == 'DISBURSEMENT' or t == 'DEPOSIT' %}cr{% elif t == 'REPAYMENT' or t == 'WITHDRAWAL' %}dr{% else %}nt{% endif %}">
+        {% if t == 'DISBURSEMENT' %}<i class="bi bi-arrow-down-circle-fill text-success"></i>
+        {% elif t == 'REPAYMENT' %}<i class="bi bi-arrow-up-circle-fill text-danger"></i>
+        {% elif t == 'WITHDRAWAL' %}<i class="bi bi-cash-stack" style="color:var(--gold);"></i>
+        {% elif t == 'DEPOSIT' %}<i class="bi bi-plus-circle-fill text-success"></i>
+        {% else %}<i class="bi bi-arrow-repeat text-secondary"></i>{% endif %}
+      </div>
+      <div class="wl-txn-info">
+        <div class="wl-txn-desc">{{ txn.description|default:txn.get_transaction_type_display }}</div>
+        <div class="wl-txn-date">{{ txn.created_at|date:"d M Y, H:i" }}</div>
+      </div>
+      <div class="wl-txn-right">
+        <div class="wl-txn-amt {% if t == 'DISBURSEMENT' or t == 'DEPOSIT' %}cr{% else %}dr{% endif %}">
+          {% if t == 'DISBURSEMENT' or t == 'DEPOSIT' %}+{% else %}−{% endif %}KES {{ txn.amount|floatformat:2 }}
+        </div>
+        <div class="wl-txn-tag {% if txn.status == 'Completed' %}c{% elif txn.status == 'Pending' %}p{% else %}f{% endif %}">
+          {{ txn.status }}
+        </div>
+      </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+  {% else %}
+    <div class="wl-empty"><i class="bi bi-inbox me-1"></i>No transactions yet.</div>
+  {% endif %}
+
+</div>
+
+<script>
+{% if active_loan %}
+(function(){
+  var total = parseFloat("{{ active_loan.qualified_amount|floatformat:4 }}") *
+              (1 + parseFloat("{{ active_loan.interest_rate|floatformat:6 }}"));
+  var rem   = parseFloat("{{ active_loan.amount_remaining|floatformat:4 }}");
+  var pct   = total > 0 ? Math.min(100, Math.max(3, ((total - rem) / total) * 100)) : 3;
+  setTimeout(function(){ document.getElementById('loanProg').style.width = pct + '%'; }, 300);
+})();
+{% endif %}
+</script>
+{% endblock %}
+
+

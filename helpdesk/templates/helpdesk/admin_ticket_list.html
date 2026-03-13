@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Support Tickets — Admin{% endblock %}
+{% block extra_css %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+body { font-family: 'DM Sans', sans-serif; background: #f8fafc; }
+.adm-wrap { max-width: 900px; margin: 0 auto; padding: 2rem 1.25rem; }
+.adm-title { font-family: 'Space Mono', monospace; font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 1.5rem; }
+.counts-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.count-chip { padding: .45rem 1rem; border-radius: 99px; font-size: .78rem; font-weight: 700; text-decoration: none; border: 2px solid transparent; }
+.count-chip.all    { background: #0f172a; color: #fff; }
+.count-chip.ai     { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.count-chip.admin  { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.count-chip.closed { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+.count-chip:hover  { opacity: .8; }
+.count-chip.active { outline: 2px solid #0f172a; outline-offset: 2px; }
+.ticket-row { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: .95rem 1.2rem; margin-bottom: .7rem; display: flex; align-items: center; gap: 1rem; text-decoration: none; color: inherit; transition: box-shadow .15s; }
+.ticket-row:hover { box-shadow: 0 4px 16px rgba(0,0,0,.07); text-decoration: none; color: inherit; }
+.tr-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+.tr-body { flex: 1; min-width: 0; }
+.tr-subject { font-size: .88rem; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tr-meta { font-size: .72rem; color: #94a3b8; margin-top: 2px; }
+.status-pill { font-size: .65rem; font-weight: 700; padding: .22rem .65rem; border-radius: 99px; text-transform: uppercase; white-space: nowrap; }
+.pill-ai     { background: #eff6ff; color: #1d4ed8; }
+.pill-admin  { background: #fef3c7; color: #92400e; }
+.pill-open   { background: #f0fdf4; color: #166534; }
+.pill-closed { background: #f1f5f9; color: #64748b; }
+.empty { text-align: center; padding: 3rem; color: #94a3b8; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="adm-wrap">
+  <div class="adm-title">🎫 Support Tickets</div>
+
+  <div class="counts-row">
+    <a href="?status=" class="count-chip all {% if not status_filter %}active{% endif %}">All ({{ counts.all }})</a>
+    <a href="?status=AI" class="count-chip ai {% if status_filter == 'AI' %}active{% endif %}">🤖 AI ({{ counts.ai }})</a>
+    <a href="?status=ADMIN" class="count-chip admin {% if status_filter == 'ADMIN' %}active{% endif %}">👨‍💼 Needs Admin ({{ counts.admin }})</a>
+    <a href="?status=CLOSED" class="count-chip closed {% if status_filter == 'CLOSED' %}active{% endif %}">✅ Closed ({{ counts.closed }})</a>
+  </div>
+
+  {% if tickets %}
+    {% for ticket in tickets %}
+    <a href="{% url 'admin_ticket_chat' ticket.id %}" class="ticket-row">
+      <div class="tr-icon" style="background:{% if ticket.status == 'ADMIN' %}#fef3c7{% elif ticket.status == 'AI' %}#eff6ff{% elif ticket.status == 'CLOSED' %}#f1f5f9{% else %}#f0fdf4{% endif %}">
+        {% if ticket.status == 'AI' %}🤖{% elif ticket.status == 'ADMIN' %}👨‍💼{% elif ticket.status == 'CLOSED' %}✅{% else %}📋{% endif %}
+      </div>
+      <div class="tr-body">
+        <div class="tr-subject">{{ ticket.subject }}</div>
+        <div class="tr-meta">{{ ticket.user.get_full_name|default:ticket.user.username }} &nbsp;·&nbsp; #{{ ticket.id }} &nbsp;·&nbsp; {{ ticket.created_at|date:"d M Y" }}</div>
+      </div>
+      <span class="status-pill {% if ticket.status == 'AI' %}pill-ai{% elif ticket.status == 'ADMIN' %}pill-admin{% elif ticket.status == 'CLOSED' %}pill-closed{% else %}pill-open{% endif %}">
+        {{ ticket.get_status_display }}
+      </span>
+    </a>
+    {% endfor %}
+  {% else %}
+  <div class="empty">
+    <div style="font-size:2.5rem;margin-bottom:1rem;">🎫</div>
+    <p>No tickets found.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

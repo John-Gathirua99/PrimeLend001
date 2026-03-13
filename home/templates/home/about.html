@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}About — PrimeLend AI{% endblock %}
+
+{% block extra_css %}
+<style>
+  .about { --navy:#0f172a; --gold:#d97706; --green:#16a34a; --border:#e2e8f0; }
+
+  .about-hero {
+    background:var(--navy); border-radius:16px; padding:3rem 2rem;
+    text-align:center; margin-bottom:2rem; position:relative; overflow:hidden;
+  }
+  .about-hero::before {
+    content:''; position:absolute; top:-60px; right:-60px;
+    width:250px; height:250px; border-radius:50%;
+    background:radial-gradient(circle, rgba(217,119,6,0.2) 0%, transparent 70%);
+    pointer-events:none;
+  }
+  .about-hero h1 { font-family:'Playfair Display',serif; color:#fff; font-size:2rem; margin-bottom:0.75rem; }
+  .about-hero p  { color:rgba(255,255,255,0.55); font-size:0.95rem; max-width:520px; margin:0 auto; line-height:1.7; }
+
+  .about-section-title { font-family:'Playfair Display',serif; font-size:1.25rem; color:var(--navy); margin-bottom:1.25rem; display:flex; align-items:center; gap:0.5rem; }
+  .about-section-title::after { content:''; flex:1; height:2px; background:linear-gradient(90deg,var(--gold),transparent); margin-left:0.75rem; }
+
+  /* Stats row */
+  .about-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:2rem; }
+  @media(max-width:480px){ .about-stats { grid-template-columns:1fr 1fr; } }
+  .about-stat { text-align:center; padding:1.25rem 0.75rem; border:1.5px solid var(--border); border-radius:14px; background:#fafafa; }
+  .about-stat-num { font-family:'Playfair Display',serif; font-size:1.8rem; font-weight:700; color:var(--navy); }
+  .about-stat-lbl { font-size:0.72rem; color:#64748b; margin-top:0.2rem; font-weight:500; text-transform:uppercase; letter-spacing:0.06em; }
+
+  /* How it works */
+  .about-steps { display:grid; grid-template-columns:repeat(2,1fr); gap:1rem; margin-bottom:2rem; }
+  @media(max-width:560px){ .about-steps { grid-template-columns:1fr; } }
+  .about-step { border:1.5px solid var(--border); border-radius:14px; padding:1.25rem; background:#fff; }
+  .about-step-num { width:32px; height:32px; background:var(--navy); color:#fff; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:0.82rem; font-weight:700; margin-bottom:0.75rem; }
+  .about-step h5  { font-family:'Playfair Display',serif; font-size:0.95rem; color:var(--navy); margin-bottom:0.35rem; }
+  .about-step p   { font-size:0.8rem; color:#64748b; margin:0; line-height:1.6; }
+
+  /* AI features */
+  .about-ai-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1rem; margin-bottom:2rem; }
+  @media(max-width:560px){ .about-ai-grid { grid-template-columns:1fr; } }
+  .about-ai-card { border-radius:14px; padding:1.25rem; border:1.5px solid var(--border); }
+  .about-ai-card.highlight { background:#fffbeb; border-color:#fde68a; }
+  .about-ai-icon { font-size:1.5rem; margin-bottom:0.6rem; }
+  .about-ai-card h5 { font-size:0.88rem; font-weight:700; color:var(--navy); margin-bottom:0.3rem; }
+  .about-ai-card p  { font-size:0.78rem; color:#64748b; margin:0; line-height:1.6; }
+
+  /* Security */
+  .about-security { background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:1.4rem; margin-bottom:2rem; }
+  .about-security-items { display:grid; grid-template-columns:repeat(2,1fr); gap:0.6rem; margin-top:0.75rem; }
+  @media(max-width:480px){ .about-security-items { grid-template-columns:1fr; } }
+  .about-sec-item { display:flex; align-items:center; gap:0.5rem; font-size:0.82rem; color:#166534; }
+
+  /* Team/contact */
+  .about-contact { display:flex; gap:1rem; flex-wrap:wrap; }
+  .about-contact-item { flex:1; min-width:180px; border:1.5px solid var(--border); border-radius:12px; padding:1rem; text-align:center; }
+  .about-contact-item i { font-size:1.4rem; color:var(--gold); margin-bottom:0.4rem; }
+  .about-contact-item h6 { font-size:0.78rem; font-weight:700; color:var(--navy); margin-bottom:0.2rem; }
+  .about-contact-item p  { font-size:0.75rem; color:#64748b; margin:0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="about">
+
+  <!-- Hero -->
+  <div class="about-hero">
+    <h1>About PrimeLend<span style="color:var(--gold);">AI</span></h1>
+    <p>Intelligent, fair, and transparent lending powered by machine learning. We combine AI-driven credit scoring with human oversight to make lending accessible to more Kenyans.</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="about-section-title"><i class="bi bi-bar-chart-fill" style="color:var(--gold);"></i>By the Numbers</div>
+  <div class="about-stats">
+    <div class="about-stat"><div class="about-stat-num">AI</div><div class="about-stat-lbl">Powered Decisions</div></div>
+    <div class="about-stat"><div class="about-stat-num">< 2min</div><div class="about-stat-lbl">Application Time</div></div>
+    <div class="about-stat"><div class="about-stat-num">256-bit</div><div class="about-stat-lbl">SSL Encryption</div></div>
+    <div class="about-stat"><div class="about-stat-num">KYC</div><div class="about-stat-lbl">Face Verified</div></div>
+    <div class="about-stat"><div class="about-stat-num">24/7</div><div class="about-stat-lbl">Support Available</div></div>
+    <div class="about-stat"><div class="about-stat-num">M-Pesa</div><div class="about-stat-lbl">Instant Disbursement</div></div>
+  </div>
+
+  <!-- How it works -->
+  <div class="about-section-title"><i class="bi bi-arrow-right-circle-fill" style="color:var(--gold);"></i>How It Works</div>
+  <div class="about-steps">
+    <div class="about-step"><div class="about-step-num">1</div><h5>Complete Your Profile</h5><p>Fill in your personal details, employment status, and upload your national ID to unlock the full application.</p></div>
+    <div class="about-step"><div class="about-step-num">2</div><h5>Face KYC Verification</h5><p>A quick selfie is matched against your ID document using DeepFace AI to confirm your identity.</p></div>
+    <div class="about-step"><div class="about-step-num">3</div><h5>AI Credit Assessment</h5><p>Our ML models assess fraud risk, creditworthiness, and determine your personalised loan limit in seconds.</p></div>
+    <div class="about-step"><div class="about-step-num">4</div><h5>Instant M-Pesa Disbursement</h5><p>Approved loans are paid directly to your M-Pesa wallet. Repay in flexible monthly instalments.</p></div>
+  </div>
+
+  <!-- AI Features -->
+  <div class="about-section-title"><i class="bi bi-cpu-fill" style="color:var(--gold);"></i>Our AI Engine</div>
+  <div class="about-ai-grid">
+    <div class="about-ai-card highlight"><div class="about-ai-icon">🧠</div><h5>Credit Scoring Model</h5><p>Analyses income, repayment history, debt ratios, and behavioural signals to generate a personalised credit probability score.</p></div>
+    <div class="about-ai-card highlight"><div class="about-ai-icon">🔍</div><h5>Fraud Detection Engine</h5><p>Detects ID reuse, velocity attacks, device switching, and income anomalies in real time before any loan is processed.</p></div>
+    <div class="about-ai-card"><div class="about-ai-icon">🪪</div><h5>OCR ID Extraction</h5><p>Tesseract OCR reads your national ID document automatically, verifying the ID number and name match your account.</p></div>
+    <div class="about-ai-card"><div class="about-ai-icon">👤</div><h5>Face KYC Matching</h5><p>DeepFace Facenet512 compares your live selfie with your ID photo to ensure you are who you say you are.</p></div>
+  </div>
+
+  <!-- Security -->
+  <div class="about-security">
+    <div class="about-section-title" style="margin-bottom:0.5rem;"><i class="bi bi-shield-fill-check text-success"></i>Security & Privacy</div>
+    <p style="font-size:0.83rem;color:#166534;margin:0 0 0.5rem;">Your data is protected at every step.</p>
+    <div class="about-security-items">
+      <div class="about-sec-item"><i class="bi bi-check-circle-fill"></i>Bank-grade SSL encryption</div>
+      <div class="about-sec-item"><i class="bi bi-check-circle-fill"></i>Email OTP two-factor auth</div>
+      <div class="about-sec-item"><i class="bi bi-check-circle-fill"></i>Face biometric verification</div>
+      <div class="about-sec-item"><i class="bi bi-check-circle-fill"></i>ID document authenticity checks</div>
+      <div class="about-sec-item"><i class="bi bi-check-circle-fill"></i>Real-time fraud monitoring</div>
+      <div class="about-sec-item"><i class="bi bi-check-circle-fill"></i>No data sold to third parties</div>
+    </div>
+  </div>
+
+  <!-- Contact -->
+  <div class="about-section-title"><i class="bi bi-envelope-fill" style="color:var(--gold);"></i>Get in Touch</div>
+  <div class="about-contact">
+    <div class="about-contact-item"><i class="bi bi-envelope-fill"></i><h6>Email</h6><p>support@primelend.ai</p></div>
+    <div class="about-contact-item"><i class="bi bi-headset"></i><h6>Support</h6><p><a href="{% url 'create_ticket' %}" style="color:var(--gold);">Open a ticket</a></p></div>
+    <div class="about-contact-item"><i class="bi bi-geo-alt-fill"></i><h6>Location</h6><p>Nairobi, Kenya</p></div>
+  </div>
+
+</div>
+{% endblock %}

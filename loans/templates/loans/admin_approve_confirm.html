@@ -1,0 +1,29 @@
+<!-- templates/loans/admin_approve_confirm.html -->
+{% extends "base.html" %}
+{% block title %}Approve Loan #{{ loan.id }}{% endblock %}
+{% block content %}
+<div style="max-width:520px; margin:0 auto;">
+  <h4 style="font-family:'Playfair Display',serif;">Approve Loan #{{ loan.id }}</h4>
+  <div class="mb-4 p-3" style="background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
+    <strong>{{ loan.full_name }}</strong><br>
+    <span class="text-muted small">KES {{ loan.qualified_amount|floatformat:0 }} · {{ loan.repayment_period }} months · {{ loan.employment_status }}</span>
+  </div>
+  <form method="POST">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Admin Note (optional)</label>
+      <textarea name="admin_note" class="form-control" rows="3"
+                placeholder="Any notes for the record…"></textarea>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-success px-4">✓ Confirm Approval</button>
+      <a href="{% url 'admin_pending_loans' %}" class="btn btn-outline-secondary px-4">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+
+<!-- ─────────────────────────────────────────────────────── -->
+<!-- Save a SECOND file as templates/loans/admin_reject_confirm.html -->
+<!-- ─────────────────────────────────────────────────────── -->

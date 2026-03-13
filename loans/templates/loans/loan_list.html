@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}My Active Loans{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-5 gap-3">
+        <div>
+            <h1 class="h3 fw-bold" style="font-family: 'Playfair Display', serif; color: var(--primary-navy);">
+                My Active Loans
+            </h1>
+            <p class="text-muted mb-0">Track your ongoing and past loan applications.</p>
+        </div>
+        <div>
+            <a href="{% url 'loan_apply' %}" class="btn btn-primary rounded-pill px-4 shadow-sm hover-lift">
+                <i class="bi bi-plus-circle me-2"></i> Apply for New Loan
+            </a>
+        </div>
+    </div>
+
+    <!-- Loans Grid -->
+    <div class="row g-4">
+        {% for loan in loans %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100 hover-card position-relative overflow-hidden">
+                
+                <!-- Status Indicator Line (Left Border) -->
+                <div class="position-absolute top-0 start-0 h-100" style="width: 5px; 
+                    {% if loan.status == 'Funded' %} background-color: #059669;
+                    {% elif loan.status == 'Approved' %} background-color: #d97706;
+                    {% elif loan.status == 'Rejected' %} background-color: #dc2626;
+                    {% else %} background-color: #64748b; {% endif %}">
+                </div>
+
+                <div class="card-body ps-4">
+                    <!-- Header: ID & Status -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted small text-uppercase fw-bold">Loan #{{ loan.id }}</span>
+                        
+                        {% if loan.status == "Funded" %}
+                            <span class="badge rounded-pill bg-success bg-opacity-10 text-success">Funded</span>
+                        {% elif loan.status == "Approved" %}
+                            <span class="badge rounded-pill bg-warning bg-opacity-10 text-warning">Approved</span>
+                        {% elif loan.status == "Rejected" %}
+                            <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger">Rejected</span>
+                        {% else %}
+                            <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary">{{ loan.status }}</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Amount Info -->
+                    <h3 class="fw-bold mb-1" style="color: var(--primary-navy); font-family: 'Playfair Display', serif;">
+                        KES {{ loan.qualified_amount }}
+                    </h3>
+                    <p class="text-muted small mb-4">
+                        Remaining Balance: <span class="fw-bold text-dark">KES {{ loan.amount_remaining }}</span>
+                    </p>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2 mt-auto">
+                        
+                        <!-- Repayment Schedule Button -->
+                        <a href="{% url 'repayment_schedule' loan.id %}" class="btn btn-light border d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-calendar3 me-2"></i> Repayment Schedule</span>
+                            
+                            <!-- Status Badges for Repayment -->
+                            <span class="d-flex gap-1">
+                                {% if loan.unpaid > 0 %}
+                                    <span class="badge bg-secondary rounded-pill">{{ loan.unpaid }} Unpaid</span>
+                                {% endif %}
+                                {% if loan.due_today > 0 %}
+                                    <span class="badge bg-warning rounded-pill text-dark">Due</span>
+                                {% endif %}
+                                {% if loan.overdue > 0 %}
+                                    <span class="badge bg-danger rounded-pill">Overdue</span>
+                                {% endif %}
+                            </span>
+                        </a>
+
+                        <!-- Conditional Actions -->
+                        
+                        {% if loan.status == "Info Required" %}
+                        <div class="alert alert-warning py-2 px-3 mb-2" style="font-size:0.82rem;">
+                          ⚠️ <strong>Action Required:</strong> Admin needs more information from you.
+                          <a href="{% url 'loan_review_thread' loan.id %}" class="btn btn-warning btn-sm ms-2 rounded-pill">
+                            📝 View & Respond
+                          </a>
+                        </div>
+                        {% endif %}
+                        {% if loan.status == "Pending KYC" %}
+                        <div class="alert alert-info py-2 px-3 mb-2" style="font-size:0.82rem;">
+                          🪪 <strong>KYC Required:</strong> Please complete identity verification.
+                          <a href="{% url 'kyc_verify' %}" class="btn btn-info btn-sm ms-2 rounded-pill text-white">
+                            Complete KYC →
+                          </a>
+                        </div>
+                        {% endif %}
+
+                        {% if loan.status == "Approved" and not loan.terms_accepted %}
+                            <a href="{% url 'accept_terms' loan.id %}" class="btn btn-primary rounded-pill shadow-sm">
+                                <i class="bi bi-check-circle me-2"></i> Accept Terms & Get Funds
+                            </a>
+                        {% endif %}
+
+                        {% if loan.status == "Funded" %}
+                            <div class="alert alert-success small py-2 px-3 mb-0 d-flex align-items-center">
+                                <i class="bi bi-check2-all me-2"></i> Funds have been successfully disbursed.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="content-card text-center py-6">
+                <i class="bi bi-wallet2 display-3 text-muted mb-3 d-block"></i>
+                <h4 class="text-dark">No Active Loans</h4>
+                <p class="text-muted">You do not have any loan applications yet.</p>
+                <a href="{% url 'loan_apply' %}" class="btn btn-primary rounded-pill mt-3 px-4">Apply Now</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    /* Hover Effect for Cards */
+    .hover-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .hover-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
+    }
+</style>
+{% endblock %}

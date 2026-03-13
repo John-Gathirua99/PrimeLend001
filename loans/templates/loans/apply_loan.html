@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+{% block title %}Apply for a Loan{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { background:#0b0f1a !important; color:#f1f5f9 !important; }
+  .main-container { padding-top:0 !important; padding-bottom:0 !important; }
+  .content-card {
+    background:transparent !important; box-shadow:none !important;
+    border:none !important; border-radius:0 !important;
+    padding:0 !important; margin:0 !important; overflow:visible !important;
+  }
+  .content-card::before { display:none !important; }
+  .main-container > .mb-4 { display:none !important; }
+
+  .al { padding:2.5rem 0 5rem; font-family:'DM Sans',sans-serif; }
+  .al-head { text-align:center; margin-bottom:2rem; }
+  .al-head h1 { font-family:'Syne',sans-serif !important; font-size:2rem; font-weight:800; color:#fff !important; letter-spacing:-0.02em; margin-bottom:0.3rem; }
+  .al-head p { color:#6b7280; font-size:0.88rem; margin:0; }
+
+  .al-dots { display:flex; justify-content:center; gap:6px; margin-bottom:2rem; }
+  .al-dot  { height:4px; border-radius:99px; background:rgba(255,255,255,0.1); width:8px; }
+  .al-dot.on { background:#00c896; width:28px; }
+
+  .al-strip { background:rgba(0,200,150,0.07); border:1px solid rgba(0,200,150,0.2); border-radius:12px; padding:0.85rem 1.2rem; margin-bottom:1.5rem; }
+  .al-strip-ttl { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:#00c896; display:block; margin-bottom:0.55rem; }
+  .al-strip-grid { display:flex; flex-wrap:wrap; gap:0.3rem 1.5rem; }
+  .al-strip-lbl { font-size:0.58rem; text-transform:uppercase; letter-spacing:0.07em; color:#6b7280; }
+  .al-strip-val { font-size:0.8rem; font-weight:600; color:#e2e8f0; }
+
+  .al-card { background:#111827 !important; border:1px solid rgba(255,255,255,0.08) !important; border-radius:16px !important; padding:1.6rem !important; box-shadow:none !important; height:100%; }
+  .al-card::before { display:none !important; }
+  .al-card-ttl { font-family:'Syne',sans-serif; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.14em; color:#f5a623 !important; margin-bottom:1.25rem; display:flex; align-items:center; gap:0.5rem; }
+  .al-pf-badge { margin-left:auto; font-size:0.6rem; color:#00c896; display:flex; align-items:center; gap:0.22rem; font-family:'DM Sans',sans-serif; text-transform:none; letter-spacing:0; }
+  .al-pf-dot { width:5px; height:5px; border-radius:50%; background:#00c896; }
+
+  .al-lbl { display:block; font-size:0.63rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:#6b7280 !important; margin-bottom:0.38rem; }
+
+  .al input, .al select, .al textarea {
+    width:100%; background:#1a2234 !important; border:1.5px solid rgba(255,255,255,0.1) !important;
+    border-radius:9px !important; padding:0.68rem 0.9rem !important; color:#f1f5f9 !important;
+    font-family:'DM Sans',sans-serif !important; font-size:0.88rem !important;
+    outline:none !important; box-shadow:none !important; transition:border-color 0.2s !important;
+    -webkit-appearance:none; appearance:none; display:block;
+  }
+  .al input::placeholder, .al textarea::placeholder { color:#374151 !important; }
+  .al input:focus, .al select:focus, .al textarea:focus { border-color:#00c896 !important; box-shadow:0 0 0 3px rgba(0,200,150,0.1) !important; }
+  .al input.pf, .al select.pf { border-color:rgba(0,200,150,0.35) !important; background:#0d1e16 !important; color:#6ee7b7 !important; }
+  .al select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important; background-repeat:no-repeat !important; background-position:right 0.85rem center !important; padding-right:2.4rem !important; cursor:pointer; }
+  .al select option { background:#1a2234 !important; color:#f1f5f9 !important; }
+  .al textarea { resize:vertical; min-height:88px; }
+
+  .al-file { display:flex; align-items:center; gap:0.5rem; width:100%; padding:0.65rem 0.9rem; background:#1a2234; border:1.5px dashed rgba(255,255,255,0.12); border-radius:9px; cursor:pointer; color:#6b7280; font-size:0.83rem; font-family:'DM Sans',sans-serif; transition:all 0.2s; box-sizing:border-box; }
+  .al-file:hover, .al-file.chosen { border-color:#00c896; color:#00c896; border-style:solid; }
+
+  /* ID card preview — 85.6×54mm standard proportions */
+  .al-id-prev { margin-top:0.6rem; width:96px !important; max-width:96px !important; height:60px !important; max-height:60px !important; border-radius:5px; overflow:hidden !important; border:1.5px solid rgba(0,200,150,0.3); background:#0f172a; display:none; position:relative; flex-shrink:0; }
+  .al-id-prev img { width:96px !important; max-width:96px !important; height:60px !important; max-height:60px !important; min-width:unset !important; min-height:unset !important; object-fit:cover !important; display:block !important; margin:0 !important; padding:0 !important; }
+  .al-id-prev-lbl { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.65); font-size:0.56rem; color:#9ca3af; padding:0.15rem 0.4rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:'DM Sans',sans-serif; }
+  .al-pdf-name { display:none; margin-top:0.4rem; font-size:0.7rem; color:#6b7280; }
+
+  .al-submit { text-align:center; padding-top:2rem; }
+  .al-btn { display:inline-flex; align-items:center; gap:0.6rem; padding:0.9rem 3rem; background:#00c896; color:#000 !important; font-family:'Syne',sans-serif !important; font-weight:700 !important; font-size:0.92rem !important; border:none !important; border-radius:99px !important; cursor:pointer; letter-spacing:0.03em; transition:opacity 0.2s, transform 0.15s; }
+  .al-btn:hover { opacity:0.88; transform:translateY(-2px); }
+  .al-btn:disabled { opacity:0.55; cursor:not-allowed; transform:none !important; }
+  .al-spn { display:none; width:15px; height:15px; border:2px solid rgba(0,0,0,0.2); border-top-color:#000; border-radius:50%; animation:alspin 0.6s linear infinite; }
+  .al-note { margin-top:0.65rem; font-size:0.7rem; color:#374151; }
+  @keyframes alspin { to { transform:rotate(360deg); } }
+
+  #idWarn { display:none; margin-top:0.35rem; font-size:0.72rem; color:#f87171; align-items:center; gap:0.3rem; }
+
+  /* OCR overlay — hidden until JS shows it */
+  #ocrOv { position:fixed; inset:0; z-index:99999; background:rgba(5,8,18,0.97); display:none; align-items:center; justify-content:center; backdrop-filter:blur(8px); }
+  #ocrOv.on { display:flex; }
+  .ocr-box { background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius:22px; padding:2.25rem 2.5rem; width:90%; max-width:340px; text-align:center; }
+  .ocr-ring { width:66px; height:66px; border-radius:50%; background:rgba(0,200,150,0.07); border:2px solid rgba(0,200,150,0.2); display:flex; align-items:center; justify-content:center; margin:0 auto 1.2rem; font-size:1.6rem; animation:ocr-pulse 2s ease-in-out infinite; }
+  @keyframes ocr-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(0,200,150,0.35);}50%{box-shadow:0 0 0 14px rgba(0,200,150,0);} }
+  .ocr-h { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:0.25rem; }
+  .ocr-s { font-size:0.75rem; color:#6b7280; margin-bottom:1.2rem; }
+  .ocr-row { display:flex; align-items:center; gap:0.65rem; padding:0.44rem 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.78rem; color:#6b7280; text-align:left; transition:color 0.3s; }
+  .ocr-row:last-child { border:none; }
+  .ocr-row.active { color:#fff; }
+  .ocr-row.done { color:#00c896; }
+  .ocr-ic { width:19px; height:19px; border-radius:50%; flex-shrink:0; background:rgba(255,255,255,0.05); color:#4b5563; display:flex; align-items:center; justify-content:center; font-size:0.58rem; transition:all 0.3s; }
+  .ocr-row.active .ocr-ic { background:rgba(0,200,150,0.18); color:#00c896; animation:alspin 0.7s linear infinite; }
+  .ocr-row.done .ocr-ic { background:rgba(0,200,150,0.15); color:#00c896; }
+  .ocr-track { height:3px; background:rgba(255,255,255,0.06); border-radius:99px; margin:1rem 0 0.6rem; overflow:hidden; }
+  .ocr-fill { height:100%; background:#00c896; border-radius:99px; width:0%; transition:width 0.5s ease; }
+  .ocr-msg { font-size:0.7rem; color:#4b5563; min-height:15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ═══ OCR overlay — injected first, hidden by inline style ═══ #}
+<div id="ocrOv" style="display:none!important">
+  <div class="ocr-box">
+    <div class="ocr-ring">🔍</div>
+    <div class="ocr-h">Verifying Your ID</div>
+    <div class="ocr-s">Authenticating documents — please wait</div>
+    <div>
+      <div class="ocr-row" id="or1"><div class="ocr-ic" id="oi1">1</div>Reading document text</div>
+      <div class="ocr-row" id="or2"><div class="ocr-ic" id="oi2">2</div>Validating MRZ checksum</div>
+      <div class="ocr-row" id="or3"><div class="ocr-ic" id="oi3">3</div>Checking for tampering</div>
+      <div class="ocr-row" id="or4"><div class="ocr-ic" id="oi4">4</div>Detecting face photo</div>
+      <div class="ocr-row" id="or5"><div class="ocr-ic" id="oi5">5</div>Matching to account</div>
+    </div>
+    <div class="ocr-track"><div class="ocr-fill" id="ocrFill"></div></div>
+    <div class="ocr-msg" id="ocrMsg">Initialising…</div>
+  </div>
+</div>
+{# Move it to body root immediately so it escapes the content-card #}
+<script>
+  (function(){
+    var ov = document.getElementById('ocrOv');
+    if (ov) {
+      ov.style.cssText = 'display:none;position:fixed;inset:0;z-index:99999;background:rgba(5,8,18,0.97);align-items:center;justify-content:center;backdrop-filter:blur(8px);';
+      document.body.appendChild(ov);
+    }
+  })();
+</script>
+
+<div class="al">
+  <div class="al-head">
+    <h1>Loan Application</h1>
+    <p>Fill in your details for an instant AI-powered decision.</p>
+  </div>
+
+  <div class="al-dots">
+    <div class="al-dot on"></div><div class="al-dot"></div><div class="al-dot"></div>
+  </div>
+
+  {% if profile %}
+  <div class="al-strip">
+    <span class="al-strip-ttl">✓ Pre-filled from your profile</span>
+    <div class="al-strip-grid">
+      <div><div class="al-strip-lbl">Name</div><div class="al-strip-val">{{ request.user.get_full_name|default:request.user.username }}</div></div>
+      {% if profile.phone_number %}<div><div class="al-strip-lbl">Phone</div><div class="al-strip-val">{{ profile.phone_number }}</div></div>{% endif %}
+      {% if profile.national_id %}<div><div class="al-strip-lbl">National ID</div><div class="al-strip-val">{{ profile.national_id }}</div></div>{% endif %}
+      {% if profile.employment_status %}<div><div class="al-strip-lbl">Employment</div><div class="al-strip-val">{{ profile.employment_status }}</div></div>{% endif %}
+      {% if profile.monthly_income %}<div><div class="al-strip-lbl">Income</div><div class="al-strip-val">KES {{ profile.monthly_income|floatformat:0 }}</div></div>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="POST" id="loanForm" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <div class="al-card">
+          <div class="al-card-ttl">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            Personal Details
+            {% if profile.date_of_birth or profile.national_id %}<span class="al-pf-badge"><span class="al-pf-dot"></span>Pre-filled</span>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="al-lbl">Age</label>
+            <input type="number" name="age" class="{% if profile.date_of_birth %}pf{% endif %}" placeholder="e.g. 28" min="18" max="80" required value="{% if profile_age %}{{ profile_age }}{% endif %}">
+          </div>
+          <div class="mb-3">
+            <label class="al-lbl">National ID Number</label>
+            <input type="text" name="id_number" id="idInput" class="{% if profile.national_id %}pf{% endif %}" placeholder="e.g. 12345678" required value="{{ profile.national_id|default:'' }}">
+            <div id="idWarn">⚠ This ID is linked to another account</div>
+          </div>
+          <div>
+            <label class="al-lbl">Employment Status</label>
+            <select name="employment_status" class="{% if profile.employment_status %}pf{% endif %}" required>
+              <option value="">Select status</option>
+              <option value="Employed" {% if profile.employment_status == "Employed" %}selected{% endif %}>Employed</option>
+              <option value="Self-employed" {% if profile.employment_status == "Self-employed" %}selected{% endif %}>Self-employed</option>
+              <option value="Unemployed" {% if profile.employment_status == "Unemployed" %}selected{% endif %}>Unemployed</option>
+              <option value="Student" {% if profile.employment_status == "Student" %}selected{% endif %}>Student</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="al-card">
+          <div class="al-card-ttl">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+            Loan Details
+            {% if profile.monthly_income %}<span class="al-pf-badge"><span class="al-pf-dot"></span>Pre-filled</span>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="al-lbl">Monthly Income (KES)</label>
+            <input type="number" step="0.01" name="monthly_income" class="{% if profile.monthly_income %}pf{% endif %}" placeholder="e.g. 45000" min="1" required value="{{ profile.monthly_income|default:'' }}">
+          </div>
+          <div class="mb-3">
+            <label class="al-lbl">Repayment Period</label>
+            <select name="repayment_period" required>
+              <option value="">Select duration</option>
+              <option value="3">3 Months</option>
+              <option value="6">6 Months</option>
+              <option value="9">9 Months</option>
+              <option value="12">12 Months</option>
+              <option value="18">18 Months</option>
+              <option value="24">24 Months</option>
+              <option value="36">36 Months</option>
+            </select>
+          </div>
+          <div>
+            <label class="al-lbl">Credit History</label>
+            <select name="credit_history" required>
+              <option value="">Select rating</option>
+              <option value="1">Good Standing</option>
+              <option value="0">Bad / No History</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="al-card mb-3">
+      <div class="al-card-ttl">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Loan Purpose
+      </div>
+      <label class="al-lbl">Reason for Loan <span style="color:#f87171">*</span></label>
+      <textarea name="reason_for_loan" rows="3" placeholder="e.g. Business expansion, medical expenses, home improvement…" required></textarea>
+    </div>
+
+    <div class="al-card mb-3">
+      <div class="al-card-ttl">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 10h3M8 14h6M14 10h2"/></svg>
+        Identity Documents
+      </div>
+      <p style="font-size:0.77rem;color:#6b7280;margin-bottom:1.1rem;">Upload clear photos of both sides of your National ID. Verified automatically on submission.</p>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label class="al-lbl">ID Front <span style="color:#f87171">*</span></label>
+          <label for="idFront" class="al-file" id="lblFront">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span id="lblFrontTxt">Upload front of ID</span>
+          </label>
+          <input type="file" name="id_document_front" id="idFront" style="display:none" accept="image/*,.pdf" required>
+          <div class="al-id-prev" id="prevFront">
+            <img id="prevFrontImg" src="" alt="ID Front" style="width:96px!important;height:60px!important;max-width:96px!important;object-fit:cover!important;display:block!important;margin:0!important">
+            <div class="al-id-prev-lbl" id="prevFrontName"></div>
+          </div>
+          <div class="al-pdf-name" id="prevFrontPdf"></div>
+        </div>
+        <div class="col-sm-6">
+          <label class="al-lbl">ID Back <span style="color:#f87171">*</span></label>
+          <label for="idBack" class="al-file" id="lblBack">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span id="lblBackTxt">Upload back of ID</span>
+          </label>
+          <input type="file" name="id_document_back" id="idBack" style="display:none" accept="image/*,.pdf" required>
+          <div class="al-id-prev" id="prevBack">
+            <img id="prevBackImg" src="" alt="ID Back" style="width:96px!important;height:60px!important;max-width:96px!important;object-fit:cover!important;display:block!important;margin:0!important">
+            <div class="al-id-prev-lbl" id="prevBackName"></div>
+          </div>
+          <div class="al-pdf-name" id="prevBackPdf"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="al-submit">
+      <button type="submit" class="al-btn" id="submitBtn">
+        <span class="al-spn" id="spn"></span>
+        <span id="submitTxt">Submit Application</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+      <p class="al-note">By submitting you agree to our terms and conditions.</p>
+    </div>
+  </form>
+</div>
+
+<script>
+// Remove Bootstrap classes from our inputs
+document.querySelectorAll('.al input, .al select, .al textarea').forEach(function(el){
+  el.classList.remove('form-control','form-select','form-check-input');
+});
+
+// OCR steps
+var ocrData = [
+  {id:1, ms:1800, msg:'Extracting text from ID image…'},
+  {id:2, ms:2200, msg:'Verifying MRZ integrity…'},
+  {id:3, ms:2000, msg:'Analysing compression patterns…'},
+  {id:4, ms:1500, msg:'Detecting face photo…'},
+  {id:5, ms:1200, msg:'Matching to account…'}
+];
+
+function showOcr() {
+  var ov = document.getElementById('ocrOv');
+  // remove inline style so CSS can take over, then add class
+  ov.removeAttribute('style');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(5,8,18,0.97);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);';
+}
+
+function runOcr() {
+  showOcr();
+  (function tick(i) {
+    var d = ocrData[i];
+    document.getElementById('or'+d.id).classList.add('active');
+    document.getElementById('oi'+d.id).textContent = '↻';
+    document.getElementById('ocrMsg').textContent   = d.msg;
+    document.getElementById('ocrFill').style.width  = ((i+1)/ocrData.length*100)+'%';
+    setTimeout(function(){
+      document.getElementById('or'+d.id).classList.replace('active','done');
+      document.getElementById('oi'+d.id).textContent = '✓';
+      if (i+1 < ocrData.length) tick(i+1);
+      else {
+        document.getElementById('ocrMsg').textContent = 'Submitting application…';
+        document.getElementById('ocrFill').style.width = '100%';
+
+        // Start backend countdown — OCR can take up to 2 minutes
+        let secs = 120;
+        const msgEl = document.getElementById('ocrMsg');
+        const countdown = setInterval(function() {
+          secs--;
+          const m = Math.floor(secs / 60);
+          const s = String(secs % 60).padStart(2, '0');
+          if (secs > 0 && msgEl) {
+            msgEl.textContent = `Processing your application — ${m}:${s} remaining. Please wait.`;
+          } else if (secs <= 0) {
+            clearInterval(countdown);
+            if (msgEl) msgEl.textContent = 'Finalising — almost done…';
+          }
+        }, 1000);
+      }
+    }, d.ms);
+  })(0);
+}
+
+document.getElementById('loanForm').addEventListener('submit', function(){
+  var hasFront = document.getElementById('idFront').files[0];
+  var hasBack  = document.getElementById('idBack').files[0];
+  if (hasFront || hasBack) runOcr();
+  document.getElementById('spn').style.display     = 'inline-block';
+  document.getElementById('submitTxt').textContent = 'Processing…';
+  document.getElementById('submitBtn').disabled    = true;
+
+  // Show 2-minute countdown — OCR can take up to 2 minutes
+  const notice = document.createElement('div');
+  notice.style.cssText = 'background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:14px 16px;margin-top:16px;font-size:0.84rem;color:#92400e;text-align:center;line-height:1.6;';
+  notice.innerHTML = '⏳ <strong>Verifying your ID document…</strong><br><span id="ocr-count">Document verification takes up to 2 minutes. Please do not close this page.</span>';
+  document.getElementById('submitBtn').parentNode.appendChild(notice);
+
+  let secs = 120;
+  const ticker = setInterval(function() {
+    secs--;
+    const el = document.getElementById('ocr-count');
+    if (!el) { clearInterval(ticker); return; }
+    const m = Math.floor(secs / 60);
+    const s = String(secs % 60).padStart(2, '0');
+    if (secs > 0) {
+      el.textContent = `Verifying your ID — please wait ${m}:${s}. Do not close this page.`;
+    } else {
+      clearInterval(ticker);
+      el.textContent = 'Finalising your application…';
+    }
+  }, 1000);
+});
+
+// ID reuse check
+var idTimer;
+document.getElementById('idInput').addEventListener('input', function(){
+  clearTimeout(idTimer);
+  var w = document.getElementById('idWarn');
+  w.style.display = 'none';
+  if (this.value.trim().length < 8) return;
+  var val = this.value.trim();
+  idTimer = setTimeout(function(){
+    fetch('/loans/check-id/?id_number='+encodeURIComponent(val), {credentials:'same-origin'})
+      .then(function(r){return r.json();})
+      .then(function(d){w.style.display = d.reused ? 'flex' : 'none';})
+      .catch(function(){});
+  }, 800);
+});
+
+// File preview — ID card size (160×101px = 85.6×54mm ratio)
+function setupPreview(inputId, prevId, imgId, nameId, pdfId, lblId, txtId) {
+  document.getElementById(inputId).addEventListener('change', function(){
+    var f = this.files[0];
+    if (!f) return;
+    var kb   = (f.size/1024).toFixed(1);
+    var name = f.name.length > 24 ? f.name.slice(0,22)+'…' : f.name;
+    var lbl  = document.getElementById(lblId);
+    lbl.classList.add('chosen');
+    document.getElementById(txtId).textContent = '✓ '+name;
+    if (f.type.startsWith('image/')) {
+      var r = new FileReader();
+      r.onload = function(e){
+        document.getElementById(imgId).src = e.target.result;
+        document.getElementById(nameId).textContent = name+' · '+kb+' KB';
+        document.getElementById(prevId).style.display = 'block';
+        document.getElementById(pdfId).style.display  = 'none';
+      };
+      r.readAsDataURL(f);
+    } else {
+      document.getElementById(prevId).style.display = 'none';
+      document.getElementById(pdfId).style.display  = 'block';
+      document.getElementById(pdfId).textContent    = '📄 '+name+' · '+kb+' KB';
+    }
+  });
+}
+setupPreview('idFront','prevFront','prevFrontImg','prevFrontName','prevFrontPdf','lblFront','lblFrontTxt');
+setupPreview('idBack', 'prevBack', 'prevBackImg', 'prevBackName', 'prevBackPdf','lblBack', 'lblBackTxt');
+</script>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<style>
+.profile-container {
+    max-width: 600px;
+    margin: 40px auto;
+    background: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+h2 { text-align: center; color: #333; margin-bottom: 20px; }
+input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    margin: 6px 0 12px 0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+input[readonly], textarea[readonly], select[disabled] {
+    background-color: #f4f6f9;
+    color: #555;
+}
+button {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    padding: 12px;
+    border-radius: 6px;
+    transition: 0.3s;
+}
+button:hover { background-color: #0056b3; }
+</style>
+
+<div class="profile-container">
+    <h2>My Profile</h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p style="color: green;">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Edit button -->
+    <button id="edit-btn" type="button">Edit Profile</button>
+
+    <form id="profile-form" method="POST" style="margin-top:20px;">
+        {% csrf_token %}
+        
+        <h3>User Info</h3>
+        {% for field in u_form %}
+            {{ field.label_tag }}<br>
+            {{ field }}
+        {% endfor %}
+
+        <h3>Profile Info</h3>
+        {% for field in p_form %}
+            {{ field.label_tag }}<br>
+            {{ field }}
+        {% endfor %}
+
+        <button type="submit" id="save-btn" style="display:none;">Save Changes</button>
+    </form>
+</div>
+
+<script>
+const editBtn = document.getElementById("edit-btn");
+const saveBtn = document.getElementById("save-btn");
+const formFields = document.querySelectorAll("#profile-form input, #profile-form textarea, #profile-form select");
+
+// Make all form fields readonly/disabled initially
+formFields.forEach(f => {
+    if(f.tagName === 'SELECT') f.disabled = true;
+    else f.readOnly = true;
+});
+
+editBtn.addEventListener("click", () => {
+    // Enable fields when Edit button is clicked
+    formFields.forEach(f => {
+        if(f.tagName === 'SELECT') f.disabled = false;
+        else f.readOnly = false;
+    });
+    saveBtn.style.display = "block";  // Show Save button
+    editBtn.style.display = "none";   // Hide Edit button
+});
+</script>
+{% endblock %}

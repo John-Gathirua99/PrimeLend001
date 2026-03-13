@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Ticket #{{ ticket.id }} — Admin View{% endblock %}
+{% block extra_css %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+body { font-family: 'DM Sans', sans-serif; background: #f8fafc; }
+.chat-layout { max-width: 720px; margin: 0 auto; padding: 1.5rem 1.25rem; display: flex; flex-direction: column; height: calc(100vh - 80px); }
+.chat-header { background: #0f172a; border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.chat-title  { font-family: 'Space Mono', monospace; font-size: .85rem; color: #fff; font-weight: 700; }
+.chat-meta   { font-size: .72rem; color: #64748b; }
+.user-info   { font-size: .78rem; color: #94a3b8; }
+.status-pill { font-size: .65rem; font-weight: 700; padding: .2rem .65rem; border-radius: 99px; text-transform: uppercase; }
+.pill-ai     { background: rgba(59,130,246,.15); color: #60a5fa; }
+.pill-admin  { background: rgba(245,158,11,.15); color: #fbbf24; }
+.pill-closed { background: rgba(100,116,139,.15); color: #94a3b8; }
+.messages-area { flex: 1; overflow-y: auto; padding: .5rem 0; margin-bottom: 1rem; }
+.msg-row { display: flex; margin-bottom: 1rem; }
+.msg-row.user  { justify-content: flex-start; }
+.msg-row.ai, .msg-row.admin { justify-content: flex-end; }
+.bubble { max-width: 75%; padding: .85rem 1.1rem; border-radius: 16px; font-size: .88rem; line-height: 1.6; white-space: pre-wrap; }
+.msg-row.user .bubble  { background: #f1f5f9; color: #0f172a; border-bottom-left-radius: 4px; border: 1px solid #e2e8f0; }
+.msg-row.ai .bubble    { background: #eff6ff; color: #1e3a5f; border-bottom-right-radius: 4px; border: 1px solid #bfdbfe; }
+.msg-row.admin .bubble { background: #0f172a; color: #e2e8f0; border-bottom-right-radius: 4px; }
+.bubble-label { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .35rem; }
+.msg-row.user .bubble-label  { color: #64748b; }
+.msg-row.ai .bubble-label    { color: #3b82f6; }
+.msg-row.admin .bubble-label { color: #94a3b8; }
+.bubble-time { font-size: .65rem; color: #94a3b8; margin-top: .4rem; }
+.bubble img  { max-width: 200px; border-radius: 8px; margin-top: .5rem; display: block; }
+.input-area  { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: .75rem 1rem; display: flex; gap: .75rem; align-items: flex-end; }
+.msg-input   { flex: 1; border: none; outline: none; font-family: inherit; font-size: .9rem; color: #0f172a; resize: none; max-height: 120px; background: transparent; }
+.send-btn    { background: #0f172a; color: #fff; border: none; padding: .5rem 1.2rem; border-radius: 10px; font-size: .82rem; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.send-btn:hover { background: #1e293b; }
+.close-btn   { background: #dc2626; color: #fff; border: none; padding: .45rem 1rem; border-radius: 99px; font-size: .78rem; font-weight: 700; cursor: pointer; }
+.back-link   { font-size: .78rem; color: #94a3b8; text-decoration: none; }
+.back-link:hover { color: #0f172a; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="chat-layout">
+  <div class="chat-header">
+    <div>
+      <div class="chat-title">{{ ticket.subject }}</div>
+      <div class="chat-meta">
+        <span class="user-info">👤 {{ ticket.user.get_full_name|default:ticket.user.username }} &nbsp;·&nbsp; {{ ticket.user.email }}</span>
+        &nbsp;·&nbsp; Ticket #{{ ticket.id }}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.6rem;">
+      <span class="status-pill {% if ticket.status == 'AI' %}pill-ai{% elif ticket.status == 'ADMIN' %}pill-admin{% else %}pill-closed{% endif %}">
+        {{ ticket.get_status_display }}
+      </span>
+      <a href="{% url 'admin_ticket_list' %}" class="back-link">← Back</a>
+    </div>
+  </div>
+
+  <div class="messages-area" id="msgArea">
+    {% for msg in messages %}
+    <div class="msg-row {{ msg.sender|lower }}">
+      <div class="bubble">
+        <div class="bubble-label">
+          {% if msg.sender == 'USER' %}👤 {{ ticket.user.get_full_name|default:ticket.user.username }}
+          {% elif msg.sender == 'AI' %}🤖 PrimeLend AI
+          {% else %}👨‍💼 You (Admin){% endif %}
+        </div>
+        {{ msg.text }}
+        {% if msg.image %}<img src="{{ msg.image.url }}" alt="attachment">{% endif %}
+        <div class="bubble-time">{{ msg.created_at|date:"d M · H:i" }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if ticket.status != 'CLOSED' %}
+  <form method="POST" enctype="multipart/form-data" id="chatForm">
+    {% csrf_token %}
+    <div class="input-area">
+      <textarea name="message" id="msgInput" class="msg-input" placeholder="Reply to {{ ticket.user.get_full_name|default:ticket.user.username }}…" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();document.getElementById('chatForm').submit();}"></textarea>
+      <button type="submit" class="send-btn">Send →</button>
+    </div>
+  </form>
+  <div style="margin-top:.75rem;display:flex;justify-content:flex-end;">
+    <form method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="close">
+      <button type="submit" class="close-btn" onclick="return confirm('Mark this ticket as resolved and close it?')">✅ Close Ticket</button>
+    </form>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:1rem;font-size:.82rem;color:#64748b;background:#f1f5f9;border-radius:10px;">
+    ✅ This ticket is closed.
+  </div>
+  {% endif %}
+</div>
+<script>
+  var area = document.getElementById('msgArea');
+  if(area) area.scrollTop = area.scrollHeight;
+</script>
+{% endblock %}

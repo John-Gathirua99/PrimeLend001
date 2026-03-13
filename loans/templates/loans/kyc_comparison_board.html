@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}KYC Comparison Board{% endblock %}
+{% block content %}
+<style>
+  .board { max-width:1400px; margin:0 auto; padding:1.5rem; }
+  .board-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem; }
+  .board-header h1 { font-size:1.2rem; font-weight:700; color:#f5a623; margin:0; }
+  .board-filters { display:flex; gap:0.5rem; flex-wrap:wrap; }
+  .filter-btn { padding:0.3rem 0.9rem; border-radius:99px; font-size:0.75rem; text-decoration:none; border:1px solid rgba(255,255,255,0.12); color:#9ca3af; background:#111827; }
+  .filter-btn.active { background:#f5a623; color:#000; border-color:#f5a623; font-weight:700; }
+  .board-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:1rem; }
+  .kyc-card { background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius:12px; overflow:hidden; }
+  .kyc-card-header { padding:0.7rem 1rem; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:space-between; }
+  .kyc-card-name { font-size:0.82rem; font-weight:700; color:#e5e7eb; }
+  .kyc-card-id { font-size:0.7rem; color:#6b7280; }
+  .kyc-images { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+  .kyc-img-box { position:relative; }
+  .kyc-img-box img { width:100%; aspect-ratio:1; object-fit:cover; object-position:center top; display:block; cursor:zoom-in; }
+  .kyc-img-label { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.65); font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#fff; padding:0.25rem 0.5rem; text-align:center; }
+  .kyc-card-footer { padding:0.6rem 1rem; display:flex; align-items:center; justify-content:space-between; }
+  .kyc-status { font-size:0.72rem; font-weight:700; padding:0.2rem 0.6rem; border-radius:99px; }
+  .kyc-status.match    { background:#dcfce7; color:#166534; }
+  .kyc-status.mismatch { background:#fee2e2; color:#991b1b; }
+  .kyc-status.pending  { background:#fef3c7; color:#92400e; }
+  .kyc-actions { display:flex; gap:0.4rem; }
+  .kyc-actions a { font-size:0.72rem; padding:0.25rem 0.7rem; border-radius:6px; text-decoration:none; font-weight:600; }
+  .btn-detail  { background:#1e293b; color:#94a3b8; border:1px solid rgba(255,255,255,0.08); }
+  .btn-debug   { background:rgba(245,166,35,0.1); color:#f5a623; border:1px solid rgba(245,166,35,0.2); }
+  .no-img { width:100%; aspect-ratio:1; background:#0d1117; display:flex; align-items:center; justify-content:center; color:#374151; font-size:0.75rem; }
+  .divider { width:2px; background:rgba(255,255,255,0.06); }
+  .conf-bar { height:3px; background:rgba(255,255,255,0.06); }
+  .conf-fill { height:100%; background:#00c896; transition:width 0.3s; }
+</style>
+
+<div class="board">
+  <div class="board-header">
+    <h1>👁 KYC Comparison Board <span style="color:#6b7280;font-size:0.85rem;font-weight:400;">({{ entries|length }} loans)</span></h1>
+    <div class="board-filters">
+      <a href="?status=" class="filter-btn {% if not status_filter %}active{% endif %}">All</a>
+      {% for s in statuses %}
+      <a href="?status={{ s }}" class="filter-btn {% if status_filter == s %}active{% endif %}">{{ s }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if entries %}
+  <div class="board-grid">
+    {% for entry in entries %}
+    <div class="kyc-card">
+      <div class="kyc-card-header">
+        <div>
+          <div class="kyc-card-name">{{ entry.loan.user.get_full_name|default:entry.loan.user.username }}</div>
+          <div class="kyc-card-id">Loan #{{ entry.loan.id }} · ID {{ entry.loan.id_number|default:"—" }}</div>
+        </div>
+        <span class="kyc-status {% if entry.loan.kyc_face_verified %}match{% elif entry.loan.kyc_face_verified == False %}mismatch{% else %}pending{% endif %}">
+          {% if entry.loan.kyc_face_verified %}✓ Match{% elif entry.loan.kyc_face_verified == False %}✗ Mismatch{% else %}? Unverified{% endif %}
+        </span>
+      </div>
+
+      <div class="kyc-images">
+        <div class="kyc-img-box">
+          {% if entry.selfie_url %}
+            <img src="{{ entry.selfie_url }}" alt="Selfie" onclick="openLightbox('{{ entry.selfie_url }}')">
+          {% else %}
+            <div class="no-img">No selfie</div>
+          {% endif %}
+          <div class="kyc-img-label">📷 Selfie</div>
+        </div>
+        <div class="divider"></div>
+        <div class="kyc-img-box">
+          {% if entry.id_url %}
+            <img src="{{ entry.id_url }}" alt="ID" style="object-position:center center;" onclick="openLightbox('{{ entry.id_url }}')">
+          {% else %}
+            <div class="no-img">No ID</div>
+          {% endif %}
+          <div class="kyc-img-label">🪪 ID Doc</div>
+        </div>
+      </div>
+
+      {% if entry.loan.kyc_confidence %}
+      <div class="conf-bar">
+        <div class="conf-fill" style="width:{{ entry.loan.kyc_confidence }}%;{% if not entry.loan.kyc_face_verified %}background:#dc2626;{% endif %}"></div>
+      </div>
+      {% endif %}
+
+      <div class="kyc-card-footer">
+        <div style="font-size:0.7rem;color:#6b7280;">
+          {{ entry.loan.status }} ·
+          {% if entry.loan.kyc_confidence %}{{ entry.loan.kyc_confidence|floatformat:0 }}% conf · {% endif %}
+          {{ entry.loan.created_at|date:"d M Y" }}
+        </div>
+        <div class="kyc-actions">
+          <a href="{% url 'loan_ocr_debug' entry.loan.id %}" class="btn-debug">🔬 OCR</a>
+          <a href="{% url 'admin_loan_detail' entry.loan.id %}" class="btn-detail">Detail →</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;color:#6b7280;padding:3rem;font-size:0.9rem;">
+    No loans with KYC selfies found{% if status_filter %} for status "{{ status_filter }}"{% endif %}.
+  </div>
+  {% endif %}
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="this.style.display='none'"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;align-items:center;justify-content:center;cursor:zoom-out;">
+  <img id="lightbox-img" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 0 60px rgba(0,0,0,0.8);">
+</div>
+<script>
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').style.display = 'flex';
+}
+</script>
+{% endblock %}

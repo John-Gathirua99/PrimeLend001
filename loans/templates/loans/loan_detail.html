@@ -1,0 +1,7 @@
+{% if loan.terms_accepted and not loan.processing_fee_paid %}
+<a href="{% url 'pay_processing_fee' loan.id %}" class="btn btn-success">
+    Pay Processing Fee
+</a>
+{% else %}
+<span class="badge bg-success">Processing Fee Paid</span>
+{% endif %}

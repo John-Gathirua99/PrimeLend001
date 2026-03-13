@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block title %}Loan Details - PrimeLend AI{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            <!-- Back Button -->
+            <div class="mb-4">
+                <a href="{% url 'dashboard' %}" class="btn btn-link text-muted ps-0 text-decoration-none">
+                    <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
+                </a>
+            </div>
+
+            <!-- Main Card -->
+            <div class="content-card p-0">
+                
+                <!-- Header Section -->
+                <div class="p-4 p-md-5 border-bottom" style="background-color: #f8fafc;">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                        <div>
+                            <span class="text-muted small text-uppercase fw-bold">Loan Application ID</span>
+                            <h2 class="h3 fw-bold mb-0" style="font-family: 'Playfair Display', serif; color: var(--primary-navy);">
+                                #LN-{{ loan.id }}
+                            </h2>
+                        </div>
+                        
+                        <!-- Status Badge -->
+                        <div class="d-flex align-items-center gap-2">
+                            {% if loan.status == "Approved" %}
+                                <span class="badge rounded-pill px-4 py-2 fs-6" style="background-color: #ecfdf5; color: #059669;">
+                                    <i class="bi bi-check-circle-fill me-1"></i> {{ loan.status }}
+                                </span>
+                            {% elif loan.status == "Pending" %}
+                                <span class="badge rounded-pill px-4 py-2 fs-6" style="background-color: #fffbeb; color: #d97706;">
+                                    <i class="bi bi-clock-fill me-1"></i> {{ loan.status }}
+                                </span>
+                            {% elif loan.status == "Rejected" %}
+                                <span class="badge rounded-pill px-4 py-2 fs-6" style="background-color: #fef2f2; color: #dc2626;">
+                                    <i class="bi bi-x-circle-fill me-1"></i> {{ loan.status }}
+                                </span>
+                            {% else %}
+                                <span class="badge rounded-pill bg-secondary px-4 py-2 fs-6">{{ loan.status }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Body Content -->
+                <div class="p-4 p-md-5">
+                    
+                    <!-- Rejection Alert (Shows only if rejected) -->
+                    {% if loan.status == "Rejected" %}
+                    <div class="alert alert-danger d-flex align-items-start mb-5" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                        <div>
+                            <h5 class="alert-heading fw-bold mb-1">Application Declined</h5>
+                            <p class="mb-0 small">{{ loan.rejection_reason|default:"Unfortunately, we could not approve your request at this time." }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row g-5">
+                        <!-- Column 1: Personal Information -->
+                        <div class="col-md-6">
+                            <h5 class="text-muted small text-uppercase fw-bold mb-4 pb-2 border-bottom">
+                                <i class="bi bi-person me-2"></i>Applicant Details
+                            </h5>
+                            
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="text-muted">Full Name</span>
+                                <span class="fw-bold text-dark">{{ loan.full_name }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="text-muted">Age</span>
+                                <span class="fw-bold text-dark">{{ loan.age }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="text-muted">Employment</span>
+                                <span class="fw-bold text-dark">{{ loan.employment_status }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="text-muted">Monthly Income</span>
+                                <span class="fw-bold text-dark">${{ loan.monthly_income|floatformat:2 }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Column 2: Loan Specifics -->
+                        <div class="col-md-6">
+                            <h5 class="text-muted small text-uppercase fw-bold mb-4 pb-2 border-bottom">
+                                <i class="bi bi-cash-stack me-2"></i>Loan Information
+                            </h5>
+                            
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="text-muted">Qualified Amount</span>
+                                <span class="fw-bold text-dark fs-5">${{ loan.qualified_amount }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="text-muted">Repayment Period</span>
+                                <span class="fw-bold text-dark">{{ loan.repayment_period }} Months</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="text-muted">Credit History</span>
+                                <span class="fw-bold text-dark">{{ loan.credit_history }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="text-muted">Date Applied</span>
+                                <span class="fw-bold text-dark">{{ loan.created_at|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Security Check Section -->
+                    <div class="mt-5 pt-4 border-top">
+                        <h5 class="text-muted small text-uppercase fw-bold mb-4">
+                            <i class="bi bi-shield-lock me-2"></i>Security & AI Analysis
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card border-0 bg-light p-3">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span class="text-muted small">Fraud Check</span>
+                                        {% if loan.fraud_flag %}
+                                            <span class="badge bg-danger"><i class="bi bi-exclamation-octagon me-1"></i> Flagged</span>
+                                        {% else %}
+                                            <span class="badge bg-success"><i class="bi bi-shield-check me-1"></i> Clear</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mt-3 mt-md-0">
+                                <div class="card border-0 bg-light p-3">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span class="text-muted small">Risk Assessment</span>
+                                        <span class="badge bg-primary">Low Risk</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    {% if loan.status == "Approved" and not loan.processing_fee_paid %}
+                    <div class="mt-5 text-center">
+                        <p class="text-muted small mb-3">Your loan has been approved. Pay the processing fee to proceed.</p>
+                        <a href="{% url 'pay_processing_fee' loan.id %}" class="btn btn-primary btn-lg px-5 rounded-pill shadow hover-lift">
+                            <i class="bi bi-credit-card me-2"></i> Pay Processing Fee
+                        </a>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-lift {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .hover-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}

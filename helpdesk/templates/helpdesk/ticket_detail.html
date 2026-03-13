@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Ticket #{{ ticket.id }} - Details{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            <!-- Header Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                        <div>
+                            <h1 class="h3 fw-bold mb-1" style="font-family: 'Playfair Display', serif; color: var(--primary-navy);">
+                                Ticket #{{ ticket.id }}
+                            </h1>
+                            <p class="text-muted mb-0 small">
+                                Created on {{ ticket.created_at|date:"F d, Y \\a\\t h:i A" }}
+                            </p>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if ticket.status == 'Open' %}
+                                <span class="badge rounded-pill px-3 py-2" style="background-color: #fffbeb; color: #d97706;">
+                                    <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> Open
+                                </span>
+                            {% elif ticket.status == 'Answered' %}
+                                <span class="badge rounded-pill px-3 py-2" style="background-color: #ecfdf5; color: #059669;">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Answered
+                                </span>
+                            {% elif ticket.status == 'Closed' %}
+                                <span class="badge rounded-pill px-3 py-2 bg-secondary bg-opacity-10 text-secondary">
+                                    Closed
+                                </span>
+                            {% else %}
+                                <span class="badge rounded-pill px-3 py-2 bg-primary bg-opacity-10 text-primary">
+                                    {{ ticket.status }}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conversation Transcript -->
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="mb-0 fw-bold">Conversation Transcript</h5>
+                </div>
+                
+                <div class="card-body p-4 bg-light" style="min-height: 400px;">
+                    <div class="d-flex flex-column gap-3">
+                        {% for msg in messages %}
+                        
+                        {% if msg.sender == 'USER' %}
+                            <!-- User Message (Right) -->
+                            <div class="d-flex justify-content-end">
+                                <div class="message-bubble message-user shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center mb-1 gap-3">
+                                        <small class="opacity-75">{{ msg.created_at|date:"h:i A" }}</small>
+                                        <strong class="small">You</strong>
+                                    </div>
+                                    <p class="mb-0">{{ msg.text }}</p>
+                                    {% if msg.image %}
+                                        <div class="mt-2">
+                                            <a href="{{ msg.image.url }}" target="_blank">
+                                                <img src="{{ msg.image.url }}" class="img-fluid rounded" style="max-width: 200px;">
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                        {% elif msg.sender == 'AI' %}
+                            <!-- AI Message (Left) -->
+                            <div class="d-flex justify-content-start align-items-end gap-2">
+                                <div class="avatar-xs bg-dark rounded-circle d-flex align-items-center justify-content-center text-white">
+                                    <i class="bi bi-robot"></i>
+                                </div>
+                                <div class="message-bubble message-ai shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center mb-1 gap-3">
+                                        <strong class="small text-primary">AI Assistant</strong>
+                                        <small class="text-muted">{{ msg.created_at|date:"h:i A" }}</small>
+                                    </div>
+                                    <p class="mb-0 small">{{ msg.text }}</p>
+                                </div>
+                            </div>
+
+                        {% else %}
+                            <!-- Admin Message (Left) -->
+                            <div class="d-flex justify-content-start align-items-end gap-2">
+                                <div class="avatar-xs bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                                <div class="message-bubble message-admin shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center mb-1 gap-3">
+                                        <strong class="small text-dark">Support Team</strong>
+                                        <small class="text-muted">{{ msg.created_at|date:"h:i A" }}</small>
+                                    </div>
+                                    <p class="mb-0 small">{{ msg.text }}</p>
+                                    {% if msg.image %}
+                                        <div class="mt-2">
+                                            <a href="{{ msg.image.url }}" target="_blank">
+                                                <img src="{{ msg.image.url }}" class="img-fluid rounded" style="max-width: 200px;">
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% empty %}
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-chat-dots display-3 mb-3 d-block"></i>
+                            <p>No messages found in this thread.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="text-center mt-5">
+                <a href="{% url 'ticket_chat' ticket.id %}" class="btn btn-primary btn-lg rounded-pill shadow-sm px-5 hover-lift">
+                    <i class="bi bi-reply-all me-2"></i> Reply / Continue Conversation
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Message Bubbles */
+    .message-bubble {
+        max-width: 60%;
+        padding: 10px 15px;
+        border-radius: 16px;
+        font-size: 0.95rem;
+    }
+
+    /* User Style (Gold Theme) */
+    .message-user {
+        background-color: var(--accent-gold);
+        color: #fff;
+        border-bottom-right-radius: 4px;
+    }
+
+    /* AI Style (Navy Theme) */
+    .message-ai {
+        background-color: #eff6ff;
+        color: #1e3a8a;
+        border-bottom-left-radius: 4px;
+        border: 1px solid #dbeafe;
+    }
+
+    /* Admin Style (White) */
+    .message-admin {
+        background-color: #fff;
+        color: #333;
+        border-bottom-left-radius: 4px;
+        border: 1px solid #e2e8f0;
+    }
+
+    /* Small Avatar for Chat */
+    .avatar-xs {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+    
+    /* Hover effect */
+    .hover-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(217, 119, 6, 0.2);
+    }
+</style>
+{% endblock %}

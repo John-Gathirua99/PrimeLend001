@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PrimeLend AI{% endblock %}</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-navy: #0f172a;
+            --accent-gold: #d97706;
+            --surface-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            background-color: var(--surface-light);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1, h2, h3, h4, h5, h6, .display-heading {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            color: var(--primary-navy);
+        }
+
+        /* ── TICKER ───────────────────────────────────────── */
+        .pl-ticker {
+            background: var(--primary-navy);
+            overflow: hidden;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            border-bottom: 2px solid rgba(217,119,6,0.4);
+        }
+        .pl-ticker-label {
+            background: var(--accent-gold);
+            color: #fff;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 0 12px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            flex-shrink: 0;
+            letter-spacing: 1.5px;
+        }
+        .pl-ticker-scroll { overflow: hidden; flex: 1; }
+        .pl-ticker-track {
+            display: flex;
+            animation: ticker-scroll 40s linear infinite;
+            white-space: nowrap;
+        }
+        .pl-ticker-track:hover { animation-play-state: paused; }
+        .pl-ticker-item {
+            font-size: 0.67rem;
+            color: #94a3b8;
+            padding: 0 2rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .pl-ticker-item .t-name { color: #cbd5e1; }
+        .pl-ticker-item .t-amt  { color: var(--accent-gold); font-weight: 600; }
+        .pl-ticker-item .t-loc  { color: #475569; font-size: 0.62rem; }
+        .pl-ticker-sep { color: #1e3050; padding: 0 0.5rem; }
+        @keyframes ticker-scroll {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* ── NAVBAR ───────────────────────────────────────── */
+        .navbar {
+            background-color: var(--primary-navy);
+            padding: 1rem 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .navbar-brand {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: #fff !important;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .navbar-brand span { color: var(--accent-gold); }
+        .nav-link {
+            color: rgba(255,255,255,0.8) !important;
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            margin: 0 5px;
+        }
+        .nav-link:hover, .nav-link.active { color: var(--accent-gold) !important; }
+        .dropdown-menu {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            padding: 10px;
+        }
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+        .dropdown-item:hover { background-color: #fffbeb; color: var(--accent-gold); }
+
+        /* Loan status pill */
+        .nav-loan-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(217,119,6,0.12);
+            border: 1px solid rgba(217,119,6,0.3);
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 0.68rem;
+            color: var(--accent-gold);
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .nav-loan-pill:hover { background: rgba(217,119,6,0.2); color: var(--accent-gold); }
+        .nav-status-dot {
+            width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+        }
+        .nav-status-dot.green  { background: #10b981; box-shadow: 0 0 5px #10b981; }
+        .nav-status-dot.amber  { background: var(--accent-gold); box-shadow: 0 0 5px var(--accent-gold); }
+        .nav-status-dot.grey   { background: #64748b; }
+
+        /* Profile avatar in navbar */
+        .nav-avatar {
+            width: 30px; height: 30px; border-radius: 50%;
+            border: 2px solid var(--accent-gold);
+            object-fit: cover; overflow: hidden;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: rgba(217,119,6,0.15); color: var(--accent-gold);
+            font-size: 0.9rem; vertical-align: middle;
+        }
+        .nav-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* ── BUTTONS ──────────────────────────────────────── */
+        .btn-primary {
+            background-color: var(--accent-gold);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(217,119,6,0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(217,119,6,0.4);
+            background-color: #b45309;
+            color: #fff;
+        }
+        .btn-outline-light { border-radius: 50px; padding: 8px 20px; font-weight: 500; border-width: 2px; }
+
+        /* ── LAYOUT ───────────────────────────────────────── */
+        .main-container { flex: 1; padding-top: 40px; padding-bottom: 40px; }
+        .content-card {
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(0,0,0,0.03);
+            position: relative;
+            overflow: hidden;
+        }
+        .content-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 6px;
+            background: linear-gradient(90deg, var(--primary-navy), var(--accent-gold));
+        }
+
+        /* ── ALERTS ───────────────────────────────────────── */
+        .alert {
+            border: none; border-radius: 12px;
+            padding: 15px 20px; font-weight: 500;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .alert-success { background-color: #dcfce7; color: #166534; }
+        .alert-danger  { background-color: #fee2e2; color: #991b1b; }
+        .alert-info    { background-color: #e0f2fe; color: #075985; }
+        .alert-warning { background-color: #fef3c7; color: #92400e; }
+
+        /* ── NOTIFICATION BADGE ───────────────────────────── */
+        .notification-badge {
+            position: absolute; top: -5px; right: -5px;
+            font-size: 0.7rem; padding: 4px 6px;
+            border-radius: 50%; background-color: #ef4444; color: white;
+        }
+
+        /* ── FLOATING AI CHAT ─────────────────────────────── */
+        .pl-chat-fab {
+            position: fixed; bottom: 1.5rem; right: 1.5rem;
+            width: 52px; height: 52px; border-radius: 50%;
+            background: var(--accent-gold);
+            border: none; cursor: pointer; z-index: 999;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem; color: #fff;
+            box-shadow: 0 4px 20px rgba(217,119,6,0.5);
+            transition: all 0.2s;
+        }
+        .pl-chat-fab:hover { transform: scale(1.1); box-shadow: 0 6px 28px rgba(217,119,6,0.7); }
+        .pl-chat-ping {
+            position: absolute; top: -2px; right: -2px;
+            width: 13px; height: 13px; border-radius: 50%;
+            background: #10b981; border: 2px solid var(--surface-light);
+            animation: chat-ping 2s infinite;
+        }
+        @keyframes chat-ping {
+            0%,100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+        }
+        .pl-chat-window {
+            position: fixed; bottom: 5.5rem; right: 1.5rem;
+            width: 340px; height: 460px;
+            background: #fff; border: 1px solid #e2e8f0;
+            border-radius: 16px; display: flex; flex-direction: column;
+            z-index: 998; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            transform: scale(0.9) translateY(20px);
+            opacity: 0; pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .pl-chat-window.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
+        .pl-chat-header {
+            background: var(--primary-navy); border-radius: 16px 16px 0 0;
+            padding: 0.875rem 1rem; display: flex; align-items: center; gap: 10px;
+        }
+        .pl-chat-avatar {
+            width: 34px; height: 34px; border-radius: 50%;
+            background: rgba(217,119,6,0.2); border: 1px solid var(--accent-gold);
+            display: flex; align-items: center; justify-content: center; font-size: 1rem;
+        }
+        .pl-chat-header-name { font-size: 0.82rem; font-weight: 600; color: #fff; }
+        .pl-chat-header-status { font-size: 0.62rem; color: #10b981; }
+        .pl-chat-close {
+            margin-left: auto; background: none; border: none;
+            color: rgba(255,255,255,0.6); cursor: pointer; font-size: 1rem;
+        }
+        .pl-chat-close:hover { color: #fff; }
+        .pl-chat-messages {
+            flex: 1; overflow-y: auto; padding: 0.875rem;
+            display: flex; flex-direction: column; gap: 0.6rem;
+            background: #f8fafc;
+        }
+        .pl-msg {
+            max-width: 85%; padding: 0.5rem 0.75rem;
+            border-radius: 10px; font-size: 0.78rem; line-height: 1.5;
+        }
+        .pl-msg.bot {
+            background: #fff; color: var(--text-main);
+            border: 1px solid #e2e8f0;
+            border-radius: 4px 10px 10px 10px; align-self: flex-start;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .pl-msg.user {
+            background: var(--accent-gold); color: #fff;
+            border-radius: 10px 4px 10px 10px; align-self: flex-end;
+        }
+        .pl-msg.typing { color: #94a3b8; font-style: italic; background: #fff; border: 1px solid #e2e8f0; align-self: flex-start; }
+        .pl-chat-suggestions {
+            display: flex; flex-wrap: wrap; gap: 4px;
+            padding: 0.5rem 0.875rem; background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+        .pl-chat-suggestion {
+            font-size: 0.67rem; padding: 4px 10px; border-radius: 20px;
+            border: 1px solid #cbd5e1; background: #fff;
+            color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+        }
+        .pl-chat-suggestion:hover { border-color: var(--accent-gold); color: var(--accent-gold); }
+        .pl-chat-input-row {
+            display: flex; gap: 0.5rem; padding: 0.75rem;
+            border-top: 1px solid #e2e8f0; background: #fff;
+            border-radius: 0 0 16px 16px;
+        }
+        .pl-chat-input {
+            flex: 1; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 0.4rem 0.75rem; font-size: 0.8rem;
+            outline: none; font-family: inherit; color: var(--text-main);
+        }
+        .pl-chat-input:focus { border-color: var(--accent-gold); }
+        .pl-chat-send {
+            width: 34px; height: 34px; border-radius: 8px;
+            background: var(--accent-gold); border: none; cursor: pointer;
+            color: #fff; display: flex; align-items: center; justify-content: center;
+        }
+        .pl-chat-send:hover { background: #b45309; }
+
+        /* ── FOOTER ───────────────────────────────────────── */
+        footer {
+            background-color: var(--primary-navy);
+            color: #94a3b8; padding: 60px 0 30px; margin-top: auto;
+        }
+        footer h5 { color: #fff; font-family: 'Playfair Display', serif; margin-bottom: 20px; }
+        footer a { color: #cbd5e1; text-decoration: none; transition: color 0.3s; }
+        footer a:hover { color: var(--accent-gold); }
+        .footer-bottom {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: 40px; padding-top: 20px;
+            text-align: center; font-size: 0.9rem;
+        }
+
+        /* ── MOBILE ───────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .content-card { padding: 20px; border-radius: 16px; }
+            .navbar-nav { padding-top: 20px; }
+            .pl-chat-window { width: calc(100vw - 2rem); right: 1rem; }
+            .pl-ticker { display: none; }
+            .nav-loan-pill { display: none; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- ── PAGE LOADER ─────────────────────────────────────── -->
+<div id="pageLoader" style="position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.4s ease;">
+  <div style="text-align:center;">
+    <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:#fff;margin-bottom:2rem;">
+      PrimeLend<span style="color:#d97706;">AI</span>
+    </div>
+    <div style="width:52px;height:52px;border:3px solid rgba(255,255,255,0.08);border-top-color:#d97706;border-radius:50%;animation:spin 0.75s linear infinite;margin:0 auto 1.5rem;"></div>
+    <div id="loaderMsg" style="font-size:0.82rem;color:#64748b;letter-spacing:0.04em;">Loading…</div>
+  </div>
+</div>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+<script>
+(function(){
+  const loader = document.getElementById('pageLoader');
+  const msgEl  = document.getElementById('loaderMsg');
+  const msgs   = ['Loading your dashboard…','Securing your session…','Fetching account data…','Almost ready…'];
+  let i = 0;
+  const t = setInterval(() => { msgEl.textContent = msgs[i=(i+1)%msgs.length]; }, 1200);
+  const hide = () => { clearInterval(t); loader.style.opacity='0'; setTimeout(()=>loader.style.display='none',420); };
+  window.addEventListener('load', hide);
+  setTimeout(hide, 4000);
+})();
+</script>
+
+<!-- ── FUNDED TICKER ───────────────────────────────────── -->
+<div class="pl-ticker">
+  <div class="pl-ticker-label">✓ FUNDED</div>
+  <div class="pl-ticker-scroll">
+    <div class="pl-ticker-track" id="tickerTrack"></div>
+  </div>
+</div>
+
+<!-- ── NAVBAR ──────────────────────────────────────────── -->
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'home' %}">
+            <i class="bi bi-buildings"></i> PrimeLend<span>AI</span>
+        </a>
+
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto align-items-center">
+
+                {% if user.is_authenticated %}
+
+                    <!-- Live loan status pill -->
+                    {% with latest_loan=user.loanapplication_set.last %}
+                    {% if latest_loan %}
+                    <li class="nav-item me-2">
+                        <a href="{% url 'loan_list' %}" class="nav-loan-pill">
+                            {% if latest_loan.status == "Approved" or latest_loan.status == "Disbursed" %}
+                                <span class="nav-status-dot green"></span>
+                            {% elif latest_loan.status == "Pending" or latest_loan.status == "Under Review" or latest_loan.status == "Pending KYC" %}
+                                <span class="nav-status-dot amber"></span>
+                            {% else %}
+                                <span class="nav-status-dot grey"></span>
+                            {% endif %}
+                            {{ latest_loan.status }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endwith %}
+
+                    <!-- Loans Dropdown -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-wallet2 me-1"></i> Loans
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'loan_apply' %}"><i class="bi bi-plus-circle me-2"></i>Apply Loan</a></li>
+                            {% with user_loans=request.user.loanapplication_set.all %}
+                                {% if user_loans %}
+                                    <li><a class="dropdown-item" href="{% url 'loan_list' %}"><i class="bi bi-list-check me-2"></i>My Loans</a></li>
+<li><a class="dropdown-item" href="{% url 'credit_score_history' %}">📈 Credit Score</a></li>
+                                {% endif %}
+                            {% endwith %}
+                            <li><a class="dropdown-item" href="{% url 'transaction_history' %}"><i class="bi bi-clock-history me-2"></i>Transactions</a></li>
+                        </ul>
+                    </li>
+
+                    <!-- Support -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'create_ticket' %}"><i class="bi bi-headset me-1"></i> Support</a>
+                    </li>
+
+                    <!-- Admin Dropdown -->
+                    {% if user.is_staff %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-shield-lock me-1"></i> Admin
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'admin_loan_dashboard' %}"><i class="bi bi-graph-up-arrow me-2"></i>Loan Dashboard</a></li>
+                            <li><a class="dropdown-item" href="{% url 'admin_pending_loans' %}"><i class="bi bi-hourglass-split me-2"></i>Pending Loans</a></li>
+                            <li><a class="dropdown-item" href="{% url 'kyc_comparison_board' %}"><i class="bi bi-person-vcard me-2"></i>KYC Board</a></li>
+                            <li><a class="dropdown-item" href="{% url 'admin_analytics' %}">📊 Analytics</a></li>
+                            <li><a class="dropdown-item" href="{% url 'admin_ticket_list' %}"><i class="bi bi-envelope-check me-2"></i>Support Queue</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'admin_nav' %}"><i class="bi bi-grid-3x3-gap me-2"></i>Quick Nav</a></li>
+                            <li><a class="dropdown-item" href="{% url 'admin:index' %}" target="_blank"><i class="bi bi-shield-fill me-2"></i>Django Admin ↗</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    <!-- Notifications -->
+                    <li class="nav-item">
+                        <a href="{% url 'notifications' %}" class="nav-link position-relative">
+                            <i class="bi bi-bell fs-5"></i>
+                            {% if unread_notifications > 0 %}
+                                <span class="notification-badge">{{ unread_notifications }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+
+                    <!-- Wallet -->
+                    <li class="nav-item ms-lg-2">
+                        <a href="{% url 'wallet_dashboard' %}" class="btn btn-primary btn-sm px-3 py-2">
+                            <i class="bi bi-wallet-fill me-1"></i> Wallet
+                        </a>
+                    </li>
+
+                    <!-- Account Dropdown with profile pic -->
+                    <li class="nav-item dropdown ms-lg-2">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown">
+                            <span class="nav-avatar">
+                                {% if user.profile.kyc_selfie %}
+                                    <img src="{{ user.profile.kyc_selfie.url }}" alt="">
+                                {% else %}
+                                    <i class="bi bi-person-fill"></i>
+                                {% endif %}
+                            </span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li class="px-3 py-2" style="font-size:0.78rem;color:#64748b;border-bottom:1px solid #f1f5f9;margin-bottom:4px;">
+                                Signed in as <strong>{{ user.get_full_name|default:user.username }}</strong>
+                            </li>
+                            <li><a class="dropdown-item" href="{% url 'profile' %}"><i class="bi bi-person me-2"></i>Profile</a></li>
+                            <li><a class="dropdown-item" href="{% url 'dashboard' %}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="{% url 'logout' %}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        </ul>
+                    </li>
+
+                {% else %}
+                    <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
+                    <li class="nav-item ms-2">
+                        <a href="{% url 'register' %}" class="btn btn-primary btn-sm px-4 py-2">Register</a>
+                    </li>
+                {% endif %}
+
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- ── MAIN CONTENT ─────────────────────────────────────── -->
+<div class="container main-container">
+    {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="content-card">
+        {% block content %}{% endblock %}
+    </div>
+</div>
+
+<!-- ── FOOTER ──────────────────────────────────────────── -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <h5>PrimeLend<span style="color:var(--accent-gold)">AI</span></h5>
+                <p class="small">Intelligent lending for the modern era. We use advanced AI to secure your financial future with transparency and speed.</p>
+            </div>
+            <div class="col-md-2 mb-4">
+                <h5>Quick Links</h5>
+                <ul class="list-unstyled">
+                    <li><a href="{% url 'home' %}" class="small">Home</a></li>
+                    <li><a href="{% url 'loan_apply' %}" class="small">Apply</a></li>
+                    <li><a href="{% url 'wallet_dashboard' %}" class="small">Wallet</a></li>
+                </ul>
+            </div>
+            <div class="col-md-3 mb-4">
+                <h5>Support</h5>
+                <ul class="list-unstyled">
+                    <li><a href="{% url 'create_ticket' %}" class="small">Help Center</a></li>
+                    <li><a href="{% url 'create_ticket' %}" class="small">Contact Us</a></li>
+                </ul>
+            </div>
+            <div class="col-md-3 mb-4">
+                <h5>Contact</h5>
+                <p class="small mb-1"><i class="bi bi-envelope me-2"></i> support@primelend.ai</p>
+                <p class="small"><i class="bi bi-telephone me-2"></i> +254 700 000 000</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p class="mb-0">&copy; {% now "Y" %} PrimeLend AI. All rights reserved. | <a href="#">Privacy</a> | <a href="#">Terms</a></p>
+        </div>
+    </div>
+</footer>
+
+<!-- ── FLOATING AI CHAT ─────────────────────────────────── -->
+<button class="pl-chat-fab" id="chatFab" title="Ask PrimeLend AI">
+    🤖<span class="pl-chat-ping"></span>
+</button>
+
+<div class="pl-chat-window" id="chatWindow">
+    <div class="pl-chat-header">
+        <div class="pl-chat-avatar">🤖</div>
+        <div>
+            <div class="pl-chat-header-name">PrimeLend Assistant</div>
+            <div class="pl-chat-header-status">● Online — Ask about loans</div>
+        </div>
+        <button class="pl-chat-close" id="chatClose"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="pl-chat-messages" id="chatMessages">
+        <div class="pl-msg bot">👋 Hi! I'm your PrimeLend AI assistant. Ask me anything about loans, eligibility, rates, or how to apply!</div>
+    </div>
+    <div class="pl-chat-suggestions" id="chatSuggestions">
+        <button class="pl-chat-suggestion">How much can I borrow?</button>
+        <button class="pl-chat-suggestion">Interest rates?</button>
+        <button class="pl-chat-suggestion">How to apply?</button>
+        <button class="pl-chat-suggestion">KYC requirements?</button>
+    </div>
+    <div class="pl-chat-input-row">
+        <input class="pl-chat-input" id="chatInput" placeholder="Type your question…" autocomplete="off">
+        <button class="pl-chat-send" id="chatSend"><i class="bi bi-send-fill"></i></button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Loan Ticker ──────────────────────────────────────────
+(function(){
+  const track = document.getElementById('tickerTrack');
+  if (!track) return;
+  const loans = [
+    {name:'J. Mwangi',  amt:'KES 45,000',  loc:'Nairobi'},
+    {name:'A. Ochieng', amt:'KES 120,000', loc:'Kisumu'},
+    {name:'F. Kamau',   amt:'KES 30,000',  loc:'Thika'},
+    {name:'B. Njoroge', amt:'KES 75,000',  loc:'Nakuru'},
+    {name:'M. Wanjiku', amt:'KES 200,000', loc:'Mombasa'},
+    {name:'P. Otieno',  amt:'KES 55,000',  loc:'Eldoret'},
+    {name:'G. Kariuki', amt:'KES 90,000',  loc:'Nairobi'},
+    {name:'S. Auma',    amt:'KES 40,000',  loc:'Kisii'},
+    {name:'D. Mutua',   amt:'KES 65,000',  loc:'Machakos'},
+    {name:'C. Wambui',  amt:'KES 150,000', loc:'Nairobi'},
+  ];
+  track.innerHTML = [...loans,...loans].map(l =>
+    `<span class="pl-ticker-item">
+      <span class="t-name">${l.name}</span>&nbsp;approved&nbsp;
+      <span class="t-amt">${l.amt}</span>
+      <span class="t-loc">· ${l.loc}</span>
+    </span><span class="pl-ticker-sep">|</span>`
+  ).join('');
+})();
+
+// ── AI Chat ──────────────────────────────────────────────
+(function(){
+  const fab  = document.getElementById('chatFab');
+  const win  = document.getElementById('chatWindow');
+  const cls  = document.getElementById('chatClose');
+  const inp  = document.getElementById('chatInput');
+  const snd  = document.getElementById('chatSend');
+  const msgs = document.getElementById('chatMessages');
+  const sugg = document.getElementById('chatSuggestions');
+
+  const R = {
+    borrow:   'Based on your income, you can borrow up to 3× your monthly salary. Minimum KES 1,000, maximum KES 200,000.',
+    interest: 'Our interest rate is 5–15% per month depending on your credit score and loan term. Apply to get your personalised rate.',
+    apply:    'Click "Loans → Apply Loan" in the navbar. You\'ll need your National ID, income details, and a KYC selfie. Takes ~3 minutes!',
+    kyc:      'KYC requires a clear photo of your National ID (front) and a live selfie. Our AI verifies your identity automatically.',
+    repay:    'Repayments are deducted from your wallet. You can make early repayments with no penalty!',
+    status:   'Go to "Loans → My Loans" to see your current status, repayment schedule, and full history.',
+    def:      'I\'m here to help with loan enquiries! Try asking about borrowing limits, interest rates, how to apply, or KYC requirements.',
+  };
+
+  function getReply(q) {
+    q = q.toLowerCase();
+    if (q.match(/borrow|much|limit|amount/)) return R.borrow;
+    if (q.match(/interest|rate|%/)) return R.interest;
+    if (q.match(/apply|how|start/)) return R.apply;
+    if (q.match(/kyc|id|verify|identity/)) return R.kyc;
+    if (q.match(/repay|pay|install/)) return R.repay;
+    if (q.match(/status|check|loan/)) return R.status;
+    return R.def;
+  }
+
+  function addMsg(text, type) {
+    const d = document.createElement('div');
+    d.className = 'pl-msg ' + type;
+    d.textContent = text;
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function send(text) {
+    text = text.trim(); if (!text) return;
+    addMsg(text, 'user');
+    sugg.style.display = 'none';
+    inp.value = '';
+    const t = document.createElement('div');
+    t.className = 'pl-msg typing'; t.textContent = 'Typing…';
+    msgs.appendChild(t); msgs.scrollTop = msgs.scrollHeight;
+    setTimeout(() => { t.remove(); addMsg(getReply(text), 'bot'); }, 700 + Math.random()*400);
+  }
+
+  fab.addEventListener('click', () => { win.classList.toggle('open'); if(win.classList.contains('open')) inp.focus(); });
+  cls.addEventListener('click', () => win.classList.remove('open'));
+  snd.addEventListener('click', () => send(inp.value));
+  inp.addEventListener('keydown', e => { if(e.key==='Enter') send(inp.value); });
+  sugg.querySelectorAll('.pl-chat-suggestion').forEach(b => b.addEventListener('click', () => send(b.textContent)));
+})();
+</script>
+
+{% block extra_body %}{% endblock %}
+</body>
+</html>
+
+
+
+
+
+

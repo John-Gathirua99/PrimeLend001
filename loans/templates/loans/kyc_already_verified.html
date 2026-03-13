@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Identity Verified — KYC{% endblock %}
+
+{% block extra_css %}
+<style>
+  .kyc-done { --navy:#0f172a; --gold:#d97706; --green:#16a34a; --border:#e2e8f0; }
+
+  .kyc-done-card {
+    background:#fff; border-radius:18px; border:1.5px solid #bbf7d0;
+    padding:2rem 1.75rem; max-width:480px; margin:0 auto;
+  }
+
+  .kyc-done-badge {
+    width:72px; height:72px; border-radius:50%;
+    background:linear-gradient(135deg,#16a34a,#22c55e);
+    display:flex; align-items:center; justify-content:center;
+    font-size:2rem; margin:0 auto 1rem;
+    box-shadow:0 4px 20px rgba(22,163,74,0.3);
+  }
+
+  .kyc-done-title {
+    font-family:'Playfair Display',serif;
+    font-size:1.4rem; font-weight:700;
+    color:var(--navy); text-align:center; margin-bottom:0.25rem;
+  }
+  .kyc-done-sub {
+    font-size:0.85rem; color:#64748b;
+    text-align:center; margin-bottom:1.75rem;
+  }
+
+  /* Profile row */
+  .kyc-profile-row {
+    display:flex; align-items:center; gap:1rem;
+    background:#f8fafc; border-radius:12px;
+    padding:1rem 1.25rem; margin-bottom:1.25rem;
+    border:1px solid var(--border);
+  }
+  .kyc-avatar {
+    width:64px; height:64px; border-radius:50%;
+    object-fit:cover; border:3px solid #16a34a;
+    flex-shrink:0;
+  }
+  .kyc-avatar-placeholder {
+    width:64px; height:64px; border-radius:50%;
+    background:#e2e8f0; display:flex; align-items:center;
+    justify-content:center; font-size:1.5rem; flex-shrink:0;
+    border:3px solid var(--border);
+  }
+  .kyc-profile-info { flex:1; min-width:0; }
+  .kyc-profile-name {
+    font-weight:700; color:var(--navy);
+    font-size:0.95rem; margin-bottom:0.15rem;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .kyc-profile-email {
+    font-size:0.78rem; color:#64748b;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .kyc-verified-pill {
+    display:inline-flex; align-items:center; gap:0.3rem;
+    background:#dcfce7; color:#166534;
+    padding:0.25rem 0.7rem; border-radius:99px;
+    font-size:0.7rem; font-weight:700; flex-shrink:0;
+  }
+
+  /* Confidence bar */
+  .kyc-conf-row {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:0.4rem;
+  }
+  .kyc-conf-lbl { font-size:0.78rem; color:#64748b; font-weight:600; }
+  .kyc-conf-val { font-size:0.78rem; color:#16a34a; font-weight:700; }
+  .kyc-bar-track {
+    height:8px; background:#e2e8f0; border-radius:99px;
+    overflow:hidden; margin-bottom:1.5rem;
+  }
+  .kyc-bar-fill {
+    height:100%; border-radius:99px;
+    background:linear-gradient(90deg,#16a34a,#22c55e);
+    transition:width 1s ease;
+  }
+
+  /* Warning state */
+  .kyc-warn-card {
+    border-color:#fef08a; background:#fefce8;
+  }
+  .kyc-warn-card .kyc-done-badge {
+    background:linear-gradient(135deg,#d97706,#f59e0b);
+    box-shadow:0 4px 20px rgba(217,119,6,0.3);
+  }
+  .kyc-warn-pill {
+    background:#fef3c7; color:#92400e;
+  }
+
+  /* Buttons */
+  .kyc-btn-continue {
+    width:100%; padding:0.85rem; border:none; border-radius:12px;
+    background:var(--navy); color:#fff;
+    font-size:0.95rem; font-weight:700; cursor:pointer;
+    transition:background 0.18s; margin-bottom:0.6rem;
+    text-decoration:none; display:block; text-align:center;
+  }
+  .kyc-btn-continue:hover { background:#1e3a5f; color:#fff; }
+  .kyc-btn-redo {
+    width:100%; padding:0.7rem; border:1px solid var(--border);
+    border-radius:12px; background:#f8fafc; color:#64748b;
+    font-size:0.85rem; font-weight:600; cursor:pointer;
+    transition:all 0.18s; text-decoration:none; display:block; text-align:center;
+  }
+  .kyc-btn-redo:hover { border-color:#94a3b8; color:var(--navy); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kyc-done">
+  <div class="kyc-done-card {% if not kyc_verified %}kyc-warn-card{% endif %}">
+
+    <!-- Badge -->
+    <div class="kyc-done-badge">
+      {% if kyc_verified %}✅{% else %}⚠️{% endif %}
+    </div>
+
+    <!-- Title -->
+    <div class="kyc-done-title">
+      {% if kyc_verified %}Identity Verified{% else %}Verification Pending{% endif %}
+    </div>
+    <div class="kyc-done-sub">
+      {% if kyc_verified %}
+        Your face matches your ID document. You're all set to apply.
+      {% else %}
+        Face match was inconclusive — your application will be reviewed manually.
+      {% endif %}
+    </div>
+
+    <!-- Profile row -->
+    <div class="kyc-profile-row">
+      {% if loan and loan.kyc_selfie %}
+        <img src="{{ loan.kyc_selfie.url }}" class="kyc-avatar" alt="Your selfie">
+      {% else %}
+        <div class="kyc-avatar-placeholder">👤</div>
+      {% endif %}
+      <div class="kyc-profile-info">
+        <div class="kyc-profile-name">{{ user.get_full_name|default:user.username }}</div>
+        <div class="kyc-profile-email">{{ user.email }}</div>
+      </div>
+      <span class="kyc-verified-pill {% if not kyc_verified %}kyc-warn-pill{% endif %}">
+        {% if kyc_verified %}✓ Verified{% else %}⚠ Flagged{% endif %}
+      </span>
+    </div>
+
+    {% if kyc_verified and kyc_confidence %}
+    <!-- Confidence bar -->
+    <div class="kyc-conf-row">
+      <span class="kyc-conf-lbl">Match Confidence</span>
+      <span class="kyc-conf-val">{{ kyc_confidence }}%</span>
+    </div>
+    <div class="kyc-bar-track">
+      <div class="kyc-bar-fill" style="width:{{ kyc_confidence }}%;"></div>
+    </div>
+    {% endif %}
+
+    <!-- ID doc thumbnail -->
+    {% if loan and loan.id_document_front %}
+    <div style="display:flex;align-items:center;gap:0.75rem;background:#f8fafc;border-radius:10px;padding:0.75rem 1rem;margin-bottom:1.5rem;border:1px solid var(--border);">
+      <img src="{{ loan.id_document_front.url }}"
+           style="width:56px;height:36px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
+      <div>
+        <div style="font-size:0.78rem;font-weight:700;color:var(--navy);">ID Document</div>
+        <div style="font-size:0.7rem;color:#64748b;">Verified against this document</div>
+      </div>
+      <span style="margin-left:auto;font-size:0.7rem;color:#16a34a;font-weight:700;">✓ On file</span>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    {% if loan and loan.status == "Pending KYC" %}
+    <a href="{% url 'finalize_loan' loan.id %}" class="kyc-btn-continue">
+      <i class="bi bi-check-circle me-2"></i>Get My Loan Decision
+    </a>
+  {% else %}
+    <a href="{% url 'loan_apply' %}" class="kyc-btn-continue">
+      <i class="bi bi-arrow-right-circle me-2"></i>Continue to Loan Application
+    </a>
+  {% endif %}
+    <a href="{% url 'kyc_redo' %}" class="kyc-btn-redo" onclick="return confirm('Re-do face verification? Your current verified status will be cleared.');">
+      🔄 Re-verify Identity
+    </a>
+
+  </div>
+</div>
+{% endblock %}

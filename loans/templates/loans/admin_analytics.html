@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% block title %}Loan Analytics — PrimeLend AI{% endblock %}
+
+{% block extra_css %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --navy: #0f172a;
+    --gold: #d97706;
+    --green: #059669;
+    --red: #dc2626;
+    --blue: #2563eb;
+    --surface: #f8fafc;
+    --border: #e2e8f0;
+    --muted: #64748b;
+  }
+
+  body { font-family: 'DM Sans', sans-serif; background: var(--surface); }
+
+  .an-wrap { max-width: 1200px; margin: 0 auto; padding: 2rem 1.25rem; }
+
+  .an-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;
+  }
+  .an-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem; font-weight: 700; color: var(--navy);
+    letter-spacing: 0.04em;
+  }
+  .an-subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+  .an-period-btns { display: flex; gap: 0.4rem; }
+  .period-btn {
+    padding: 0.35rem 0.85rem; border-radius: 8px; font-size: 0.75rem;
+    font-weight: 600; border: 1px solid var(--border); background: #fff;
+    color: var(--muted); cursor: pointer; transition: all 0.15s;
+  }
+  .period-btn.active, .period-btn:hover {
+    background: var(--navy); color: #fff; border-color: var(--navy);
+  }
+
+  /* KPI Cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .kpi-card {
+    background: #fff; border-radius: 14px; padding: 1.25rem 1.4rem;
+    border: 1px solid var(--border); position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .kpi-card.gold::before { background: var(--gold); }
+  .kpi-card.green::before { background: var(--green); }
+  .kpi-card.red::before { background: var(--red); }
+  .kpi-card.blue::before { background: var(--blue); }
+  .kpi-card.navy::before { background: var(--navy); }
+
+  .kpi-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.4rem; }
+  .kpi-value { font-size: 1.8rem; font-weight: 700; color: var(--navy); font-family: 'Space Mono', monospace; line-height: 1; }
+  .kpi-sub { font-size: 0.72rem; color: var(--muted); margin-top: 0.4rem; }
+  .kpi-trend { font-size: 0.72rem; font-weight: 600; margin-top: 0.3rem; }
+  .kpi-trend.up { color: var(--green); }
+  .kpi-trend.down { color: var(--red); }
+
+  /* Chart grid */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+  .chart-grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+  @media(max-width:768px) { .chart-grid, .chart-grid-3 { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: #fff; border-radius: 14px; padding: 1.4rem 1.5rem;
+    border: 1px solid var(--border);
+  }
+  .chart-title {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted); margin-bottom: 1.2rem;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .chart-title span { font-family: 'Space Mono', monospace; font-size: 1.1rem; color: var(--navy); text-transform: none; letter-spacing: 0; }
+  canvas { width: 100% !important; }
+
+  /* Overdue table */
+  .overdue-card {
+    background: #fff; border-radius: 14px; padding: 1.4rem 1.5rem;
+    border: 1px solid var(--border); margin-bottom: 1.25rem;
+  }
+  .overdue-title {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted); margin-bottom: 1rem;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .overdue-badge { background: #fee2e2; color: var(--red); border-radius: 99px; padding: 0.2rem 0.65rem; font-size: 0.68rem; }
+
+  .ov-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .ov-table th { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; }
+  .ov-table td { padding: 0.65rem 0.75rem; border-bottom: 1px solid #f1f5f9; color: var(--navy); }
+  .ov-table tr:hover td { background: #f8fafc; }
+  .days-badge { border-radius: 99px; padding: 0.2rem 0.6rem; font-size: 0.68rem; font-weight: 700; }
+  .days-critical { background: #fee2e2; color: var(--red); }
+  .days-warning  { background: #fef3c7; color: #92400e; }
+  .days-mild     { background: #eff6ff; color: var(--blue); }
+
+  /* Audit log */
+  .audit-card {
+    background: #fff; border-radius: 14px; padding: 1.4rem 1.5rem;
+    border: 1px solid var(--border);
+  }
+  .audit-row {
+    display: flex; gap: 1rem; align-items: flex-start;
+    padding: 0.65rem 0; border-bottom: 1px solid #f1f5f9; font-size: 0.82rem;
+  }
+  .audit-row:last-child { border-bottom: none; }
+  .audit-time { font-size: 0.68rem; color: var(--muted); white-space: nowrap; min-width: 90px; }
+  .audit-icon { font-size: 1rem; min-width: 24px; text-align: center; }
+  .audit-text { color: var(--navy); flex: 1; }
+  .audit-text strong { font-weight: 600; }
+  .audit-actor { font-size: 0.68rem; color: var(--muted); }
+
+  .empty-state { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="an-wrap">
+
+  <div class="an-header">
+    <div>
+      <div class="an-title">📊 Loan Analytics</div>
+      <div class="an-subtitle">PrimeLend AI · {{ now|date:"d M Y, H:i" }}</div>
+    </div>
+    <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+      <a href="{% url 'admin_loan_dashboard' %}" class="period-btn">← Dashboard</a>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card gold">
+      <div class="kpi-label">Total Applications</div>
+      <div class="kpi-value">{{ stats.total }}</div>
+      <div class="kpi-sub">All time</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Approval Rate</div>
+      <div class="kpi-value">{{ stats.approval_rate }}%</div>
+      <div class="kpi-sub">{{ stats.approved }} approved</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Disbursed</div>
+      <div class="kpi-value" style="font-size:1.2rem;">KES {{ stats.total_disbursed|floatformat:0 }}</div>
+      <div class="kpi-sub">{{ stats.funded }} funded loans</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Overdue Loans</div>
+      <div class="kpi-value">{{ stats.overdue_count }}</div>
+      <div class="kpi-sub">KES {{ stats.overdue_amount|floatformat:0 }} at risk</div>
+    </div>
+    <div class="kpi-card navy">
+      <div class="kpi-label">Repayment Rate</div>
+      <div class="kpi-value">{{ stats.repayment_rate }}%</div>
+      <div class="kpi-sub">{{ stats.fully_repaid }} fully repaid</div>
+    </div>
+  </div>
+
+  <!-- Charts row 1 -->
+  <div class="chart-grid-3">
+    <div class="chart-card">
+      <div class="chart-title">Loans Over Time (Last 6 Months) <span>{{ stats.this_month_count }} this month</span></div>
+      <canvas id="lineChart" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Loan Status Breakdown</div>
+      <canvas id="donutChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- Charts row 2 -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Monthly Disbursements (KES)</div>
+      <canvas id="barChart" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Approval vs Rejection by Month</div>
+      <canvas id="stackedBar" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- Overdue Loans -->
+  <div class="overdue-card">
+    <div class="overdue-title">
+      ⚠️ Overdue Loans
+      <span class="overdue-badge">{{ overdue_loans|length }} loans</span>
+    </div>
+    {% if overdue_loans %}
+    <table class="ov-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Borrower</th><th>Amount</th><th>Remaining</th><th>Days Overdue</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in overdue_loans %}
+        <tr>
+          <td>{{ item.loan.id }}</td>
+          <td>
+            <strong>{{ item.loan.full_name }}</strong><br>
+            <span style="font-size:0.72rem;color:var(--muted);">{{ item.loan.user.email }}</span>
+          </td>
+          <td>KES {{ item.loan.qualified_amount|floatformat:0 }}</td>
+          <td>KES {{ item.loan.amount_remaining|floatformat:0 }}</td>
+          <td>
+            <span class="days-badge {% if item.days_overdue > 30 %}days-critical{% elif item.days_overdue > 14 %}days-warning{% else %}days-mild{% endif %}">
+              {{ item.days_overdue }}d
+            </span>
+          </td>
+          <td>
+            <a href="{% url 'admin_loan_detail' item.loan.id %}" style="font-size:0.78rem;color:var(--blue);">View →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">✅ No overdue loans — all borrowers are on track.</div>
+    {% endif %}
+  </div>
+
+  <!-- Audit Log -->
+  <div class="audit-card">
+    <div class="overdue-title">📋 Recent Admin Activity</div>
+    {% if audit_logs %}
+    {% for log in audit_logs %}
+    <div class="audit-row">
+      <div class="audit-time">{{ log.created_at|date:"d M · H:i" }}</div>
+      <div class="audit-icon">
+        {% if log.action == "Approved" %}✅
+        {% elif log.action == "Rejected" %}❌
+        {% elif log.action == "Funded" %}💸
+        {% elif log.action == "KYC" %}🪪
+        {% else %}📝{% endif %}
+      </div>
+      <div class="audit-text">
+        <strong>Loan #{{ log.loan_id }}</strong> — {{ log.action }}
+        {% if log.note %}: {{ log.note }}{% endif %}
+        <div class="audit-actor">by {{ log.actor }}</div>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">No admin activity recorded yet.</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const months   = {{ chart_data.months|safe }};
+const counts   = {{ chart_data.counts|safe }};
+const approved = {{ chart_data.approved|safe }};
+const rejected = {{ chart_data.rejected|safe }};
+const amounts  = {{ chart_data.amounts|safe }};
+const statusLabels = {{ chart_data.status_labels|safe }};
+const statusValues = {{ chart_data.status_values|safe }};
+
+const gridColor = 'rgba(226,232,240,0.6)';
+const baseOpts = {
+  responsive: true,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { grid: { color: gridColor }, ticks: { font: { size: 10 } } },
+    y: { grid: { color: gridColor }, ticks: { font: { size: 10 } }, beginAtZero: true }
+  }
+};
+
+// Line chart
+new Chart(document.getElementById('lineChart'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: [{
+      data: counts,
+      borderColor: '#d97706',
+      backgroundColor: 'rgba(217,119,6,0.08)',
+      tension: 0.4, fill: true, pointBackgroundColor: '#d97706',
+      pointRadius: 4, borderWidth: 2
+    }]
+  },
+  options: { ...baseOpts, plugins: { legend: { display: false } } }
+});
+
+// Donut chart
+new Chart(document.getElementById('donutChart'), {
+  type: 'doughnut',
+  data: {
+    labels: statusLabels,
+    datasets: [{
+      data: statusValues,
+      backgroundColor: ['#fbbf24','#34d399','#f87171','#60a5fa','#a78bfa','#94a3b8'],
+      borderWidth: 0, hoverOffset: 6
+    }]
+  },
+  options: {
+    responsive: true, cutout: '65%',
+    plugins: {
+      legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } }
+    }
+  }
+});
+
+// Bar chart - disbursements
+new Chart(document.getElementById('barChart'), {
+  type: 'bar',
+  data: {
+    labels: months,
+    datasets: [{
+      data: amounts,
+      backgroundColor: 'rgba(5,150,105,0.7)',
+      borderRadius: 6, borderSkipped: false
+    }]
+  },
+  options: { ...baseOpts }
+});
+
+// Stacked bar - approved vs rejected
+new Chart(document.getElementById('stackedBar'), {
+  type: 'bar',
+  data: {
+    labels: months,
+    datasets: [
+      { label: 'Approved', data: approved, backgroundColor: 'rgba(5,150,105,0.7)', borderRadius: 4 },
+      { label: 'Rejected', data: rejected, backgroundColor: 'rgba(220,38,38,0.6)', borderRadius: 4 }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: true, labels: { font: { size: 10 }, boxWidth: 12 } } },
+    scales: {
+      x: { stacked: true, grid: { color: gridColor }, ticks: { font: { size: 10 } } },
+      y: { stacked: true, grid: { color: gridColor }, ticks: { font: { size: 10 } }, beginAtZero: true }
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <h3 class="mb-3">My Wallet Transactions</h3>
+
+    <a href="{% url 'download_user_statement' %}"
+       class="btn btn-success mb-3">
+        ⬇ Download Statement
+    </a>
+
+    <table class="table table-striped">
+        <thead class="table-success">
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Loan</th>
+                <th>Amount</th>
+                <th>Balance After</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for t in transactions %}
+            <tr>
+                <td>{{ t.created_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ t.get_transaction_type_display }}</td>
+                <td>
+                    {% if t.loan %}
+                        #{{ t.loan.id }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>KES {{ t.amount }}</td>
+                <td>KES {{ t.balance_after }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="5">No transactions yet</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

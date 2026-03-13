@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Request Info — Loan #{{ loan.id }}{% endblock %}
+{% block content %}
+<div style="max-width:520px; margin:0 auto;">
+  <h4 style="font-family:'Playfair Display',serif;">Request Additional Info</h4>
+  <div class="mb-4 p-3" style="background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
+    <strong>{{ loan.full_name }}</strong><br>
+    <span class="text-muted small">Loan #{{ loan.id }} · KES {{ loan.qualified_amount|floatformat:0 }}</span>
+  </div>
+  <form method="POST">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label fw-semibold">What information is needed? <span class="text-danger">*</span></label>
+      <textarea name="info_needed" class="form-control" rows="3" required
+                placeholder="e.g. Please provide a recent payslip or bank statement for the last 3 months."></textarea>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-info text-white px-4">Send Request</button>
+      <a href="{% url 'admin_pending_loans' %}" class="btn btn-outline-secondary px-4">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

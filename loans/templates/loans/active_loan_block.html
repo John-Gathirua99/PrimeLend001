@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Active Loan — PrimeLend AI{% endblock %}
+
+{% block extra_css %}
+<style>
+  .block-card {
+    max-width: 520px; margin: 2rem auto;
+    background: #fff; border-radius: 18px;
+    border: 1.5px solid #fecdd3;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+  }
+  .block-header {
+    background: #0f172a; padding: 1.5rem 2rem;
+  }
+  .block-header h2 {
+    font-family: 'Playfair Display', serif;
+    color: #fff; margin: 0; font-size: 1.3rem;
+  }
+  .block-header p { color: #94a3b8; font-size: 0.8rem; margin: 4px 0 0; }
+  .block-accent { height: 4px; background: linear-gradient(90deg, #dc2626, #0f172a); }
+  .block-body { padding: 2rem; }
+
+  .block-icon {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: #fff1f2; border: 2px solid #fecdd3;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; margin: 0 auto 1.25rem;
+  }
+  .block-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.2rem; font-weight: 700;
+    color: #0f172a; text-align: center; margin-bottom: 0.4rem;
+  }
+  .block-sub {
+    font-size: 0.85rem; color: #64748b;
+    text-align: center; margin-bottom: 1.5rem; line-height: 1.6;
+  }
+
+  /* Loan info table */
+  .loan-info { background: #f8fafc; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+  .loan-info-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.5rem 0; border-bottom: 1px solid #e2e8f0;
+    font-size: 0.85rem;
+  }
+  .loan-info-row:last-child { border-bottom: none; }
+  .loan-info-label { color: #64748b; }
+  .loan-info-value { font-weight: 700; color: #0f172a; }
+
+  /* Status pill */
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.25rem 0.75rem; border-radius: 99px;
+    font-size: 0.72rem; font-weight: 700;
+  }
+  .status-pending  { background: #fef3c7; color: #92400e; }
+  .status-approved { background: #dcfce7; color: #166534; }
+  .status-funded   { background: #dbeafe; color: #1e40af; }
+
+  /* Progress bar for repayment */
+  .repay-bar-wrap { margin-bottom: 1.5rem; }
+  .repay-bar-label {
+    display: flex; justify-content: space-between;
+    font-size: 0.78rem; color: #64748b; margin-bottom: 0.4rem;
+  }
+  .repay-bar-track { height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+  .repay-bar-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #16a34a, #22c55e); }
+
+  /* Buttons */
+  .btn-primary {
+    display: block; width: 100%; padding: 0.85rem;
+    background: #0f172a; color: #fff; border: none;
+    border-radius: 12px; font-size: 0.9rem; font-weight: 700;
+    text-align: center; text-decoration: none;
+    margin-bottom: 0.6rem; cursor: pointer; transition: background 0.18s;
+  }
+  .btn-primary:hover { background: #1e3a5f; color: #fff; }
+  .btn-primary.gold  { background: #d97706; }
+  .btn-primary.gold:hover { background: #b45309; }
+  .btn-secondary {
+    display: block; width: 100%; padding: 0.75rem;
+    background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0;
+    border-radius: 12px; font-size: 0.85rem; font-weight: 600;
+    text-align: center; text-decoration: none; transition: all 0.18s;
+  }
+  .btn-secondary:hover { border-color: #94a3b8; color: #0f172a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="block-card">
+  <div class="block-header">
+    <h2>🏦 PrimeLend AI</h2>
+    <p>Loan Application</p>
+  </div>
+  <div class="block-accent"></div>
+  <div class="block-body">
+
+    <div class="block-icon">⚠️</div>
+    <div class="block-title">You Have an Active Loan</div>
+    <div class="block-sub">
+      You cannot apply for a new loan while you have an existing active loan.
+      Please repay your current loan first.
+    </div>
+
+    <!-- Current loan details -->
+    <div class="loan-info">
+      <div class="loan-info-row">
+        <span class="loan-info-label">Loan #</span>
+        <span class="loan-info-value">#{{ loan.id }}</span>
+      </div>
+      <div class="loan-info-row">
+        <span class="loan-info-label">Amount</span>
+        <span class="loan-info-value">KES {{ loan.qualified_amount|floatformat:0 }}</span>
+      </div>
+      <div class="loan-info-row">
+        <span class="loan-info-label">Status</span>
+        <span class="status-pill status-{{ loan.status|lower }}">
+          {% if loan.status == 'Pending' %}⏳{% elif loan.status == 'Approved' %}✓{% elif loan.status == 'Funded' %}💸{% endif %}
+          {{ loan.status }}
+        </span>
+      </div>
+      {% if loan.amount_remaining %}
+      <div class="loan-info-row">
+        <span class="loan-info-label">Remaining</span>
+        <span class="loan-info-value" style="color:#dc2626;">KES {{ loan.amount_remaining|floatformat:0 }}</span>
+      </div>
+      {% endif %}
+      <div class="loan-info-row">
+        <span class="loan-info-label">Applied</span>
+        <span class="loan-info-value">{{ loan.created_at|date:"d M Y" }}</span>
+      </div>
+    </div>
+
+    {% if loan.amount_remaining and loan.qualified_amount %}
+    <!-- Repayment progress -->
+    {% with paid=loan.qualified_amount|add:"-"|add:loan.amount_remaining %}
+    <div class="repay-bar-wrap">
+      <div class="repay-bar-label">
+        <span>Repayment Progress</span>
+        <span>KES {{ loan.amount_remaining|floatformat:0 }} remaining</span>
+      </div>
+      <div class="repay-bar-track">
+        <div class="repay-bar-fill" style="width:{% widthratio loan.amount_remaining loan.qualified_amount 100 as pct %}{{ 100|add:"-"|add:pct }}%;"></div>
+      </div>
+    </div>
+    {% endwith %}
+    {% endif %}
+
+    <!-- Actions based on status -->
+    {% if loan.status == 'Funded' %}
+      <a href="{% url 'wallet_dashboard' %}" class="btn-primary gold">
+        💳 Repay Loan Now
+      </a>
+    {% elif loan.status == 'Approved' %}
+      <a href="{% url 'loan_list' %}" class="btn-primary gold">
+        ✅ Accept Terms & Get Funds
+      </a>
+    {% elif loan.status == 'Pending' %}
+      <a href="{% url 'loan_list' %}" class="btn-primary">
+        ⏳ Check Application Status
+      </a>
+    {% endif %}
+
+    <a href="{% url 'wallet_dashboard' %}" class="btn-secondary">
+      View Wallet & Transactions
+    </a>
+
+  </div>
+</div>
+{% endblock %}
+
+

@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %}My Loans - PrimeLend AI{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    
+    <!-- Page Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5">
+        <div>
+            <h1 class="h2 fw-bold" style="font-family: 'Playfair Display', serif; color: #f1f5f9;">
+                My Loans Dashboard
+            </h1>
+            <p class="text-muted">Track your applications and manage repayments.</p>
+        </div>
+        <div>
+            <a href="{% url 'loan_apply' %}" class="btn btn-primary rounded-pill px-4 shadow-sm hover-lift">
+                <i class="bi bi-plus-circle me-2"></i> Apply for New Loan
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <form method="get" class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label for="status" class="form-label text-muted mb-0 fw-semibold small text-uppercase">
+                        Filter Status
+                    </label>
+                </div>
+                <div class="col-md-4">
+                    <select name="status" id="status" class="form-select bg-white border">
+                        <option value="">All Statuses</option>
+                        <option value="Pending" {% if status_filter == "Pending" %}selected{% endif %}>Pending</option>
+                        <option value="Approved" {% if status_filter == "Approved" %}selected{% endif %}>Approved</option>
+                        <option value="Funded" {% if status_filter == "Funded" %}selected{% endif %}>Funded</option>
+                        <option value="Rejected" {% if status_filter == "Rejected" %}selected{% endif %}>Rejected</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-dark px-4 rounded-pill">
+                        <i class="bi bi-funnel me-1"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loans Table Card -->
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold">Application History</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="" style="background:#111827">
+                    <tr>
+                        <th class="ps-4 text-muted small text-uppercase border-0">Loan ID</th>
+                        <th class="text-muted small text-uppercase border-0">Amount</th>
+                        <th class="text-muted small text-uppercase border-0">Date Applied</th>
+                        <th class="text-muted small text-uppercase border-0">Status</th>
+                        <th class="text-muted small text-uppercase border-0 text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for loan in loans %}
+                    <tr>
+                        <td class="ps-4">
+                            <span class="fw-bold text-dark">#LN-{{ loan.id }}</span>
+                        </td>
+                        <td>
+                            <span class="fw-semibold">{{ loan.qualified_amount }}</span>
+                        </td>
+                        <td class="text-muted">
+                            {{ loan.created_at|date:"M d, Y" }} <br>
+                            <small class="text-muted" style="font-size: 0.75rem;">{{ loan.created_at|date:"h:i A" }}</small>
+                        </td>
+
+                        <td>
+                            {% if loan.status == "Pending" %}
+                                <span class="badge rounded-pill px-3 py-2" style="background-color: #fffbeb; color: #d97706;">
+                                    <i class="bi bi-clock-history me-1"></i> Pending
+                                </span>
+                            {% elif loan.status == "Approved" %}
+                                <span class="badge rounded-pill px-3 py-2" style="background-color: #ecfdf5; color: #059669;">
+                                    <i class="bi bi-check-circle me-1"></i> Approved
+                                </span>
+                            {% elif loan.status == "Funded" %}
+                                <span class="badge rounded-pill px-3 py-2" style="background-color: #eff6ff; color: #2563eb;">
+                                    <i class="bi bi-wallet2 me-1"></i> Funded
+                                </span>
+                            {% elif loan.status == "Rejected" %}
+                                <span class="badge rounded-pill px-3 py-2" style="background-color: #fef2f2; color: #dc2626;">
+                                    <i class="bi bi-x-circle me-1"></i> Rejected
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill px-3 py-2">{{ loan.status }}</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-end pe-4">
+                            <a href="{% url 'loan_detail' loan.id %}"
+                               class="btn btn-sm btn-outline-dark rounded-pill px-3 me-1 hover-lift">
+                                <i class="bi bi-eye me-1"></i> View
+                            </a>
+
+                            {% if loan.status == "Approved" and not loan.processing_fee_paid %}
+                                <a href="{% url 'pay_processing_fee' loan.id %}"
+                                   class="btn btn-sm btn-primary rounded-pill px-3 hover-lift">
+                                    Pay Fee
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-6">
+                            <div class="py-5">
+                                <i class="bi bi-folder2-open display-4 text-muted mb-3 d-block"></i>
+                                <h5 class="text-light">No Loans Found</h5>
+                                <p class="text-muted small">You haven't applied for any loans yet, or none match your filter.</p>
+                                <a href="{% url 'loan_apply' %}" class="btn btn-primary rounded-pill mt-2 px-4">Start Application</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Hover Effect for Rows */
+    .table-hover tbody tr:hover {
+        background-color: rgba(217, 119, 6, 0.05); /* Light Gold Hover */
+    }
+    
+    /* Button Hover Lift */
+    .hover-lift {
+        transition: transform 0.2s ease;
+    }
+    .hover-lift:hover {
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}

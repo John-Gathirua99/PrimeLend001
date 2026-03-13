@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Terms and Conditions{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        
+        <!-- Sidebar Navigation (Desktop) -->
+        <div class="col-lg-3 d-none d-lg-block">
+            <div class="sticky-top py-4" style="top: 100px;">
+                <h6 class="text-uppercase text-muted mb-3 fw-bold">Contents</h6>
+                <nav class="nav flex-column">
+                    <a class="nav-link terms-nav-link active" href="#section-eligibility">1. Eligibility</a>
+                    <a class="nav-link terms-nav-link" href="#section-loan">2. Loan Terms</a>
+                    <a class="nav-link terms-nav-link" href="#section-repayment">3. Repayment</a>
+                    <a class="nav-link terms-nav-link" href="#section-ai">4. AI & Credit Scoring</a>
+                    <a class="nav-link terms-nav-link" href="#section-default">5. Default & Collections</a>
+                    <a class="nav-link terms-nav-link" href="#section-privacy">6. Privacy Policy</a>
+                </nav>
+                
+                <div class="mt-4 p-3 bg-light rounded-3 border">
+                    <p class="small text-muted mb-2">Effective Date:</p>
+                    <p class="fw-bold text-dark mb-0">{{ current_date|date:"F d, Y" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="col-lg-9">
+            <div class="content-card">
+                
+                <!-- Header -->
+                <div class="text-center mb-5 border-bottom pb-5">
+                    <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill mb-3">
+                        Legal Agreement
+                    </span>
+                    <h1 class="display-5 fw-bold" style="font-family: 'Playfair Display', serif; color: var(--primary-navy);">
+                        Terms and Conditions
+                    </h1>
+                    <p class="text-muted">Last updated: {{ current_date|date:"F d, Y" }}</p>
+                </div>
+
+                <!-- Preamble -->
+                <div class="alert alert-warning bg-light border-0 rounded-3 p-4 mb-5">
+                    <div class="d-flex">
+                        <i class="bi bi-exclamation-triangle-fill fs-4 me-3 text-warning"></i>
+                        <div>
+                            <h6 class="alert-heading fw-bold">Important Notice</h6>
+                            <p class="mb-0 small">
+                                Please read these terms carefully before applying for a loan. By submitting your application, you agree to be bound by these conditions.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 1: Eligibility -->
+                <section id="section-eligibility" class="mb-5">
+                    <h3 class="h4 fw-bold border-bottom pb-2 mb-3" style="color: var(--primary-navy);">
+                        <span class="text-warning me-2">01.</span>Eligibility Criteria
+                    </h3>
+                    <p>To qualify for a loan through PrimeLend AI, you must meet the following requirements:</p>
+                    <ul class="list-group list-group-flush border rounded-3">
+                        <li class="list-group-item">Be a citizen or legal resident of Kenya.</li>
+                        <li class="list-group-item">Be at least 18 years of age.</li>
+                        <li class="list-group-item">Possess a valid National Identification Card.</li>
+                        <li class="list-group-item">Have an active M-PESA mobile money account registered in your own name.</li>
+                        <li class="list-group-item">Provide accurate and truthful information regarding your employment and income.</li>
+                    </ul>
+                </section>
+
+                <!-- Section 2: Loan Terms -->
+                <section id="section-loan" class="mb-5">
+                    <h3 class="h4 fw-bold border-bottom pb-2 mb-3" style="color: var(--primary-navy);">
+                        <span class="text-warning me-2">02.</span>Loan Terms & Interest
+                    </h3>
+                    <p>PrimeLend AI offers loans based on your creditworthiness. The specific terms of your loan will be displayed to you prior to acceptance:</p>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded">
+                                <h6 class="fw-bold text-dark">Interest Rate</h6>
+                                <p class="small text-muted mb-0">Variable rates calculated based on risk profile. The Annual Percentage Rate (APR) will be disclosed in your loan offer.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded">
+                                <h6 class="fw-bold text-dark">Processing Fees</h6>
+                                <p class="small text-muted mb-0">A one-time non-refundable processing fee may be deducted from the loan amount or charged separately.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="small text-muted">PrimeLend AI reserves the right to adjust interest rates for future loans based on market conditions and borrower repayment behavior.</p>
+                </section>
+
+                <!-- Section 3: Repayment -->
+                <section id="section-repayment" class="mb-5">
+                    <h3 class="h4 fw-bold border-bottom pb-2 mb-3" style="color: var(--primary-navy);">
+                        <span class="text-warning me-2">03.</span>Repayment Policy
+                    </h3>
+                    <p>Repayments are facilitated exclusively through M-PESA. By accepting these terms, you authorize PrimeLend AI to:</p>
+                    <ol>
+                        <li>Send STK Push prompts to your registered phone number for payment collection.</li>
+                        <li>Automatically deduct repayment amounts if you have authorized auto-debit features.</li>
+                        <li>Apply late payment penalties if payment is not received by the due date.</li>
+                    </ol>
+                </section>
+
+                <!-- Section 4: AI Scoring (Unique to your app) -->
+                <section id="section-ai" class="mb-5">
+                    <h3 class="h4 fw-bold border-bottom pb-2 mb-3" style="color: var(--primary-navy);">
+                        <span class="text-warning me-2">04.</span>AI Credit Assessment
+                    </h3>
+                    <div class="card border-primary bg-primary bg-opacity-5 border-0 rounded-3 p-4">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-cpu fs-3 text-primary me-3"></i>
+                            <div>
+                                <h6 class="fw-bold text-dark">Algorithmic Decision Making</h6>
+                                <p class="small text-dark">
+                                    We use artificial intelligence to analyze your creditworthiness. This includes analyzing your transaction history, device metadata, and financial behavior. You have the right to request an explanation regarding any adverse decision made by our AI system.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 5: Default -->
+                <section id="section-default" class="mb-5">
+                    <h3 class="h4 fw-bold border-bottom pb-2 mb-3" style="color: var(--primary-navy);">
+                        <span class="text-warning me-2">05.</span>Default & Collections
+                    </h3>
+                    <p>An "Event of Default" occurs if you fail to pay any sum due on the due date. In such events:</p>
+                    <ul>
+                        <li>A late payment penalty of <strong>5%</strong> per month may be applied to the outstanding balance.</li>
+                        <li>Your details may be reported to the Credit Reference Bureau (CRB).</li>
+                        <li>We may engage third-party debt collection agencies to recover the debt at your cost.</li>
+                    </ul>
+                </section>
+
+                <!-- Section 6: Privacy -->
+                <section id="section-privacy" class="mb-5">
+                    <h3 class="h4 fw-bold border-bottom pb-2 mb-3" style="color: var(--primary-navy);">
+                        <span class="text-warning me-2">06.</span>Data Protection & Privacy
+                    </h3>
+                    <p>We are committed to protecting your personal data in compliance with the Data Protection Act.</p>
+                    <p class="small text-muted">We collect your ID number, phone number, location data, and financial transaction history solely for the purpose of credit assessment and loan disbursement. We do not sell your data to third parties.</p>
+                </section>
+
+                <!-- Acceptance Footer -->
+                <div class="text-center mt-5 pt-4 border-top">
+                    <p class="text-muted">By accepting below, you confirm you have read and agree to these Terms and Conditions.</p>
+                    <div class="p-4 bg-light rounded-3 border mb-4 text-start">
+                        <p class="mb-1"><strong>Loan #{{ loan.id }}</strong></p>
+                        <p class="mb-1">Amount: <strong>KES {{ loan.qualified_amount|floatformat:0 }}</strong></p>
+                        <p class="mb-0">Interest Rate: <strong>{% widthratio loan.interest_rate 1 100 %}%</strong></p>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-lg rounded-pill px-5 shadow">
+                            <i class="bi bi-check-circle me-2"></i> I Accept — Proceed to Disbursement
+                        </button>
+                    </form>
+                    <div class="d-flex justify-content-center gap-3 mt-3">
+                        <a href="{% url 'loan_list' %}" class="btn btn-outline-secondary rounded-pill px-4">
+                            <i class="bi bi-arrow-left me-2"></i> Back to My Loans
+                        </a>
+                        <button onclick="window.print()" class="btn btn-outline-dark rounded-pill px-4">
+                            <i class="bi bi-printer me-2"></i> Print
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Sidebar Navigation Styling */
+    .terms-nav-link {
+        color: #64748b;
+        font-size: 0.9rem;
+        padding: 8px 15px;
+        border-left: 3px solid transparent;
+        border-radius: 0;
+        transition: all 0.2s;
+    }
+    .terms-nav-link:hover, .terms-nav-link.active {
+        color: var(--primary-navy);
+        background-color: #f8fafc;
+        border-left-color: var(--accent-gold);
+        font-weight: 600;
+    }
+
+    /* Scrollspy Behavior */
+    section {
+        scroll-margin-top: 100px;
+    }
+
+    /* Print Styles */
+    @media print {
+        body {
+            background-color: #fff !important;
+        }
+        .content-card {
+            box-shadow: none !important;
+            border: none !important;
+        }
+        nav, .btn, .sticky-top {
+            display: none !important;
+        }
+    }
+</style>
+
+<!-- Script for Scrollspy Active State -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.terms-nav-link');
+
+    function changeLinkState() {
+        let index = sections.length;
+
+        while(--index && window.scrollY + 50 < sections[index].offsetTop) {}
+        
+        navLinks.forEach((link) => link.classList.remove('active'));
+        navLinks[index].classList.add('active');
+    }
+
+    changeLinkState();
+    window.addEventListener('scroll', changeLinkState);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <div class="icon-box-lg me-3" style="background-color: #fffbeb; color: var(--accent-gold);">
+                    <i class="bi bi-bell-fill"></i>
+                </div>
+                <div>
+                    <h1 class="h3 fw-bold mb-0" style="font-family: 'Playfair Display', serif; color: var(--primary-navy);">
+                        Notifications
+                    </h1>
+                    <p class="text-muted small mb-0">Your recent alerts and updates.</p>
+                </div>
+            </div>
+
+            <!-- Notifications Card -->
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <div class="list-group list-group-flush">
+                    {% for note in notifications %}
+                    <a href="{% url 'notif_redirect' note.id %}" class="list-group-item list-group-item-action p-4 border-bottom {% if not note.is_read %}bg-warning bg-opacity-10{% endif %}">
+                        <div class="d-flex align-items-start gap-3">
+                            <!-- Icon -->
+                            <div class="avatar-xs bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center mt-1">
+                                <i class="bi bi-megaphone-fill small"></i>
+                            </div>
+                            
+                            <!-- Content -->
+                            <div class="flex-grow-1">
+                                <p class="mb-1 fw-semibold text-dark">{{ note.message }}</p>
+                                <small class="text-muted">
+                                    <i class="bi bi-clock me-1"></i> {{ note.created_at|date:"F d, Y \\a\\t h:i A" }}
+                                </small>
+                            </div>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <div class="text-center py-6 p-5">
+                        <i class="bi bi-bell-slash display-3 text-muted mb-3 d-block"></i>
+                        <h5 class="text-dark">All Caught Up!</h5>
+                        <p class="text-muted small mb-0">You have no new notifications at this time.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if notifications.has_other_pages %}
+            <nav class="mt-5" aria-label="Notifications pagination">
+                <ul class="pagination justify-content-center">
+                    {% if notifications.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link rounded-pill mx-1" href="?page={{ notifications.previous_page_number }}">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link rounded-pill mx-1"><i class="bi bi-chevron-left"></i> Previous</span>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link rounded-pill mx-1 bg-dark border-0">
+                            {{ notifications.number }}
+                        </span>
+                    </li>
+
+                    {% if notifications.has_next %}
+                    <li class="page-item">
+                        <a class="page-link rounded-pill mx-1" href="?page={{ notifications.next_page_number }}">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link rounded-pill mx-1">Next <i class="bi bi-chevron-right"></i></span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Hover effect for list items */
+    .list-group-item-action:hover {
+        background-color: rgba(217, 119, 6, 0.05) !important; /* Light Gold Hover */
+    }
+
+    /* Icon Box Large */
+    .icon-box-lg {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    /* Small Avatar for Icons */
+    .avatar-xs {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+    
+    /* Pagination Styling */
+    .page-link {
+        color: var(--primary-navy);
+        border: 1px solid #e2e8f0;
+    }
+    .page-link:hover {
+        background-color: var(--accent-gold);
+        border-color: var(--accent-gold);
+        color: #fff;
+    }
+</style>
+{% endblock %}

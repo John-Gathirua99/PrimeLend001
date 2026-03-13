@@ -1,0 +1,808 @@
+{% extends "base.html" %}
+{% block title %}Admin Command Center{% endblock %}
+
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --ink:      #0a0e1a;
+    --surface:  #111827;
+    --panel:    #1a2235;
+    --border:   rgba(255,255,255,0.06);
+    --gold:     #f59e0b;
+    --green:    #10b981;
+    --red:      #ef4444;
+    --blue:     #3b82f6;
+    --muted:    #4b5563;
+    --dim:      #9ca3af;
+  }
+
+  .adm-shell {
+    background: var(--ink);
+    min-height: 100vh;
+    margin: -40px -12px -40px;
+    padding: 2rem 2rem 4rem;
+    font-family: 'Outfit', sans-serif;
+    color: #e2e8f0;
+  }
+
+  /* ── Top bar ── */
+  .adm-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .adm-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .adm-title span { color: var(--gold); }
+  .adm-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    padding: 0.25rem 0.7rem;
+    border-radius: 4px;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── Stat cards ── */
+  .adm-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.4rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .stat-card.gold::before  { background: var(--gold); }
+  .stat-card.green::before { background: var(--green); }
+  .stat-card.red::before   { background: var(--red); }
+  .stat-card.blue::before  { background: var(--blue); }
+
+  .stat-number {
+    font-family: 'Space Mono', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+    margin-bottom: 0.4rem;
+  }
+  .stat-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  /* ── Nav tabs ── */
+  .adm-nav {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.3rem;
+    margin-bottom: 1.5rem;
+    width: fit-content;
+    flex-wrap: wrap;
+  }
+  .adm-tab {
+    padding: 0.55rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--dim);
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .adm-tab:hover { color: #fff; }
+  .adm-tab.active {
+    background: var(--panel);
+    color: #fff;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.4);
+  }
+  .adm-tab .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  /* ── Tab panels ── */
+  .adm-panel { display: none; }
+  .adm-panel.active { display: block; }
+
+  /* ── Loan row card ── */
+  .loan-row {
+    transition: all 0.15s ease;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.2s;
+  }
+  .loan-row:hover { border-color: #d97706 !important; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(217,119,6,0.2); }
+  .loan-row:hover { border-color: rgba(255,255,255,0.15); }
+
+  .loan-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .loan-applicant { font-size: 1rem; font-weight: 700; color: #fff; }
+  .loan-meta { font-size: 0.75rem; color: var(--dim); margin-top: 2px; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0.25rem 0.75rem;
+    border-radius: 99px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .pill-pending  { background: rgba(245,158,11,0.12); color: var(--gold); border: 1px solid rgba(245,158,11,0.2); }
+  .pill-approved { background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+  .pill-rejected { background: rgba(239,68,68,0.12);  color: var(--red);   border: 1px solid rgba(239,68,68,0.2); }
+  .pill-funded   { background: rgba(59,130,246,0.12); color: var(--blue);  border: 1px solid rgba(59,130,246,0.2); }
+
+  .loan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px,1fr));
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+  .loan-cell {
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+  }
+  .cell-lbl { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 2px; }
+  .cell-val { font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }
+
+  /* Mini bar */
+  .mini-bar-row {
+    display: flex; align-items: center; gap: 0.6rem;
+    font-size: 0.72rem; color: var(--dim); margin-bottom: 0.35rem;
+  }
+  .mini-track {
+    flex: 1; height: 4px; background: rgba(255,255,255,0.06);
+    border-radius: 99px; overflow: hidden;
+  }
+  .mini-fill { height: 100%; border-radius: 99px; }
+
+  .risk-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.5rem 0; }
+  .risk-tag {
+    font-size: 0.68rem; padding: 0.2rem 0.55rem;
+    background: rgba(239,68,68,0.1); color: #fca5a5;
+    border-radius: 4px; border: 1px solid rgba(239,68,68,0.15);
+  }
+
+  /* Action buttons */
+  .action-strip {
+    display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;
+    padding-top: 0.75rem; border-top: 1px solid var(--border);
+  }
+  .adm-btn {
+    padding: 0.45rem 1rem; border-radius: 8px;
+    font-size: 0.78rem; font-weight: 600;
+    border: none; cursor: pointer;
+    text-decoration: none; display: inline-flex;
+    align-items: center; gap: 0.35rem;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .adm-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .adm-btn:active { transform: translateY(0); }
+  .btn-approve { background: var(--green); color: #000; }
+  .btn-reject  { background: var(--red);   color: #fff; }
+  .btn-info    { background: var(--blue);  color: #fff; }
+  .btn-view    { background: var(--panel); color: var(--dim); border: 1px solid var(--border); }
+  .btn-fund    { background: var(--gold);  color: #000; }
+
+  /* Inline forms */
+  .inline-form {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-top: 0.75rem;
+    display: none;
+  }
+  .inline-form.open { display: block; }
+  .adm-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.55rem 0.8rem;
+    color: #e2e8f0;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    margin-bottom: 0.6rem;
+    outline: none;
+    resize: vertical;
+    min-height: 70px;
+  }
+  .adm-input:focus { border-color: var(--gold); }
+  .form-actions { display: flex; gap: 0.5rem; }
+
+  /* Section header */
+  .section-hdr {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .empty-state {
+    text-align: center; padding: 3rem 1rem;
+    color: var(--muted); font-size: 0.9rem;
+  }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+  /* System panel */
+  .sys-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+    gap: 1rem;
+  }
+  .sys-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+  }
+  .sys-card-title {
+    font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted);
+    margin-bottom: 0.75rem;
+  }
+  .sys-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.5rem; font-weight: 700; color: #fff;
+  }
+  .sys-sub { font-size: 0.75rem; color: var(--dim); margin-top: 0.25rem; }
+  .sys-action {
+    margin-top: 1rem; padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 640px) {
+    .adm-shell { padding: 1.25rem 1rem 3rem; }
+    .adm-stats { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<div class="adm-shell">
+
+  <!-- Top bar -->
+  <div class="adm-topbar">
+    <div>
+      <div class="adm-title">PrimeLend<span>AI</span> — Admin</div>
+      <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">
+        Logged in as <strong style="color:#e2e8f0;">{{ request.user.username }}</strong>
+        &nbsp;·&nbsp; {{ now|date:"D, d M Y · H:i" }}
+      </div>
+    </div>
+    <span class="adm-badge">STAFF ACCESS</span>
+  </div>
+
+  <!-- Stats -->
+  <div class="adm-stats">
+    <div class="stat-card gold">
+      <div class="stat-number">{{ stats.pending }}</div>
+      <div class="stat-label">Pending Review</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-number">{{ stats.approved }}</div>
+      <div class="stat-label">Approved</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-number">{{ stats.funded }}</div>
+      <div class="stat-label">Active Loans</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-number">{{ stats.rejected }}</div>
+      <div class="stat-label">Rejected</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-number">KES {{ stats.total_disbursed|floatformat:0 }}</div>
+      <div class="stat-label">Total Disbursed</div>
+    </div>
+    <div class="stat-card gold">
+      <div class="stat-number">KES {{ stats.total_outstanding|floatformat:0 }}</div>
+      <div class="stat-label">Outstanding</div>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <div class="adm-nav">
+    <button class="adm-tab active" onclick="showTab('pending',this)">
+      <span class="dot" style="background:var(--gold);"></span>
+      Pending <span style="opacity:0.5;">({{ stats.pending }})</span>
+    </button>
+    <button class="adm-tab" onclick="showTab('approved',this)">
+      <span class="dot" style="background:var(--green);"></span>
+      Approved
+    </button>
+    <button class="adm-tab" onclick="showTab('funded',this)">
+      <span class="dot" style="background:var(--blue);"></span>
+      Active Loans
+    </button>
+    <button class="adm-tab" onclick="showTab('rejected',this)">
+      <span class="dot" style="background:var(--red);"></span>
+      Rejected
+    </button>
+    <button class="adm-tab" onclick="showTab('all',this)">All Loans</button>
+    <button class="adm-tab" onclick="showTab('system',this)">⚙ System</button>
+  </div>
+
+  <!-- ── PENDING ── -->
+  <div class="adm-panel active" id="tab-pending">
+    <div class="section-hdr">Loans awaiting review — {{ stats.pending }} application(s)</div>
+    {% if pending %}
+      {% for loan in pending %}
+      <div class="loan-row" onclick="window.location='{% url "admin_loan_detail" loan.id %}'" style="cursor:pointer;">
+        <div class="loan-row-top">
+          <div>
+            <div class="loan-applicant">{{ loan.full_name }}</div>
+            <div class="loan-meta">
+              #{{ loan.id }} &nbsp;·&nbsp; {{ loan.user.email }}
+              &nbsp;·&nbsp; {{ loan.created_at|timesince }} ago
+              &nbsp;·&nbsp; {{ loan.employment_status }}
+            </div>
+          </div>
+          {% if loan.status == "Info Required" %}
+            <span class="pill" style="background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.2);">📋 Info Required</span>
+          {% else %}
+            <span class="pill pill-pending">⏳ Pending</span>
+          {% endif %}
+        </div>
+
+        <div class="loan-grid">
+          <div class="loan-cell">
+            <div class="cell-lbl">Amount</div>
+            <div class="cell-val">KES {{ loan.qualified_amount|floatformat:0 }}</div>
+          </div>
+          <div class="loan-cell">
+            <div class="cell-lbl">Income / mo</div>
+            <div class="cell-val">KES {{ loan.monthly_income|floatformat:0 }}</div>
+          </div>
+          <div class="loan-cell">
+            <div class="cell-lbl">Period</div>
+            <div class="cell-val">{{ loan.repayment_period }}mo</div>
+          </div>
+          <div class="loan-cell">
+            <div class="cell-lbl">Age</div>
+            <div class="cell-val">{{ loan.age }} yrs</div>
+          </div>
+          <div class="loan-cell">
+            <div class="cell-lbl">Credit</div>
+            <div class="cell-val">{% if loan.credit_history %}Good{% else %}Poor{% endif %}</div>
+          </div>
+          <div class="loan-cell">
+            <div class="cell-lbl">Interest</div>
+            <div class="cell-val">{% widthratio loan.interest_rate 1 100 %}%</div>
+          </div>
+        </div>
+
+        <!-- Risk bars -->
+        <div class="mini-bar-row">
+          <span style="width:75px;">Fraud risk</span>
+          <div class="mini-track">
+            <div class="mini-fill"
+                 style="width:{% widthratio loan.fraud_score 1 100 %}%;
+                        background:{% if loan.fraud_score < 0.4 %}var(--green){% elif loan.fraud_score < 0.65 %}var(--gold){% else %}var(--red){% endif %};">
+            </div>
+          </div>
+          <span>{% widthratio loan.fraud_score 1 100 %}%</span>
+        </div>
+        <div class="mini-bar-row">
+          <span style="width:75px;">Credit score</span>
+          <div class="mini-track">
+            <div class="mini-fill"
+                 style="width:{% widthratio loan.predicted_probability 1 100 %}%;
+                        background:{% if loan.predicted_probability >= 0.75 %}var(--green){% elif loan.predicted_probability >= 0.5 %}var(--gold){% else %}var(--red){% endif %};">
+            </div>
+          </div>
+          <span>{% widthratio loan.predicted_probability 1 100 %}%</span>
+        </div>
+
+        {% if loan.id_authenticity_score is not None %}
+        <div class="mini-bar-row">
+          <span style="width:75px;">Doc auth</span>
+          <div class="mini-track">
+            <div class="mini-fill"
+                 style="width:{{ loan.id_authenticity_score|floatformat:0 }}%;
+                        background:{% if loan.id_authenticity_score >= 60 %}var(--green){% elif loan.id_authenticity_score >= 40 %}var(--gold){% else %}var(--red){% endif %};">
+            </div>
+          </div>
+          <span>{{ loan.id_authenticity_score|floatformat:0 }}%</span>
+          {% if not loan.id_authentic %}<span style="color:var(--red); font-size:0.65rem;">⚠ FAILED</span>{% endif %}
+        </div>
+        {% endif %}
+
+        {% if loan.risk_reasons %}
+        <div class="risk-tags">
+          {% for r in loan.risk_reasons %}
+            <span class="risk-tag">⚠ {{ r }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if loan.reason_for_loan %}
+        <div style="font-size:0.78rem; color:var(--dim); margin:0.4rem 0;">
+          <span style="color:var(--muted);">Purpose:</span> {{ loan.reason_for_loan }}
+        </div>
+        {% endif %}
+
+        <div class="action-strip" onclick="event.stopPropagation()">
+          <a href="{% url 'admin_loan_detail' loan.id %}" class="adm-btn" style="background:rgba(217,119,6,0.15);color:#f5a623;border:1px solid rgba(217,119,6,0.3);">🔍 Review Docs</a>
+          <button class="adm-btn btn-approve" onclick="toggleForm('approve-{{ loan.id }}')">✓ Approve</button>
+          <button class="adm-btn btn-reject"  onclick="toggleForm('reject-{{ loan.id }}')">✕ Reject</button>
+          <button class="adm-btn btn-info"    onclick="toggleForm('info-{{ loan.id }}')">? Info Needed</button>
+          <a href="{% url 'loan_review_thread' loan.id %}" class="adm-btn btn-view">💬 Thread{% if loan.review_messages.count %} ({{ loan.review_messages.count }}){% endif %}</a>
+        </div>
+
+        {% if loan.rejection_reason and "manual review" in loan.rejection_reason|lower %}
+        <div style="margin-top:0.5rem;padding:0.5rem 0.75rem;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;font-size:0.75rem;color:#d97706;">
+          ⚠ ID verification flagged — click <strong>Review Docs</strong> to view uploaded documents and approve manually.
+        </div>
+        {% endif %}
+
+        <!-- Approve form -->
+        <div class="inline-form" onclick="event.stopPropagation()" id="approve-{{ loan.id }}">
+          <form method="POST" action="{% url 'admin_approve_loan' loan.id %}">
+            {% csrf_token %}
+
+            <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); margin-bottom:0.75rem;">
+              Adjust before approving (optional)
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:0.75rem;">
+              <div>
+                <label style="font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); display:block; margin-bottom:0.3rem;">
+                  Loan Amount (KES)
+                </label>
+                <input type="number" name="adjusted_amount" step="100"
+                       value="{{ loan.qualified_amount }}"
+                       min="1000"
+                       style="width:100%; background:var(--surface); border:1px solid var(--border);
+                              border-radius:8px; padding:0.5rem 0.7rem; color:#e2e8f0;
+                              font-family:'Outfit',sans-serif; font-size:0.88rem; outline:none;"
+                       onfocus="this.style.borderColor='var(--gold)'"
+                       onblur="this.style.borderColor='var(--border)'">
+                <div style="font-size:0.65rem; color:var(--muted); margin-top:3px;">
+                  ML suggested: KES {{ loan.qualified_amount|floatformat:0 }}
+                </div>
+              </div>
+              <div>
+                <label style="font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); display:block; margin-bottom:0.3rem;">
+                  Interest Rate (%)
+                </label>
+                <input type="number" name="adjusted_rate" step="0.01"
+                       value="{% widthratio loan.interest_rate 1 100 %}"
+                       min="1" max="50"
+                       style="width:100%; background:var(--surface); border:1px solid var(--border);
+                              border-radius:8px; padding:0.5rem 0.7rem; color:#e2e8f0;
+                              font-family:'Outfit',sans-serif; font-size:0.88rem; outline:none;"
+                       onfocus="this.style.borderColor='var(--gold)'"
+                       onblur="this.style.borderColor='var(--border)'">
+                <div style="font-size:0.65rem; color:var(--muted); margin-top:3px;">
+                  ML suggested: {% widthratio loan.interest_rate 1 100 %}%
+                </div>
+              </div>
+            </div>
+
+            <textarea name="admin_note" class="adm-input" rows="2"
+                      placeholder="Admin note (reason for adjustment, if any)…"></textarea>
+
+            <div class="form-actions">
+              <button type="submit" class="adm-btn btn-approve">✓ Confirm Approval</button>
+              <button type="button" class="adm-btn btn-view" onclick="toggleForm('approve-{{ loan.id }}')">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Reject form -->
+        <div class="inline-form" onclick="event.stopPropagation()" id="reject-{{ loan.id }}">
+          <form method="POST" action="{% url 'admin_reject_loan' loan.id %}">
+            {% csrf_token %}
+            <textarea name="rejection_reason" class="adm-input" placeholder="Rejection reason (required — shown to applicant)…" required></textarea>
+            <div class="form-actions">
+              <button type="submit" class="adm-btn btn-reject">Confirm Rejection</button>
+              <button type="button" class="adm-btn btn-view" onclick="toggleForm('reject-{{ loan.id }}')">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Info request form -->
+        <div class="inline-form" onclick="event.stopPropagation()" id="info-{{ loan.id }}">
+          <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:#60a5fa; margin-bottom:0.75rem; display:flex; align-items:center; gap:0.4rem;">
+            <span>📋</span> Request Additional Information from Applicant
+          </div>
+          <div style="font-size:0.78rem; color:var(--dim); margin-bottom:0.75rem; line-height:1.5;">
+            The applicant will be notified and must respond before their application proceeds.
+            Their loan status will be set to <strong style="color:#60a5fa;">Info Required</strong> until they reply.
+          </div>
+          <form method="POST" action="{% url 'admin_request_info' loan.id %}">
+            {% csrf_token %}
+            <textarea name="info_needed" class="adm-input" rows="3"
+                      placeholder="e.g. Please provide your last 3 months bank statements. Your employment status could not be verified — please upload a letter from your employer." required></textarea>
+            <div style="font-size:0.68rem; color:var(--muted); margin-bottom:0.6rem;">
+              Be specific — the applicant will see this message exactly as written.
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="adm-btn btn-info">
+                📨 Send to Applicant
+              </button>
+              <button type="button" class="adm-btn btn-view" onclick="toggleForm('info-{{ loan.id }}')">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state"><div class="icon">✅</div>No loans pending review.</div>
+    {% endif %}
+  </div>
+
+  <!-- ── APPROVED ── -->
+  <div class="adm-panel" id="tab-approved">
+    <div class="section-hdr">Approved — awaiting disbursement</div>
+    {% if approved %}
+      {% for loan in approved %}
+      <div class="loan-row" onclick="window.location='{% url "admin_loan_detail" loan.id %}'" style="cursor:pointer;">
+        <div class="loan-row-top">
+          <div>
+            <div class="loan-applicant">{{ loan.full_name }}</div>
+            <div class="loan-meta">#{{ loan.id }} · {{ loan.user.email }} · approved {{ loan.approved_at|timesince }} ago</div>
+          </div>
+          <span class="pill pill-approved">✓ Approved</span>
+        </div>
+        <div class="loan-grid">
+          <div class="loan-cell"><div class="cell-lbl">Amount</div><div class="cell-val">KES {{ loan.qualified_amount|floatformat:0 }}</div></div>
+          <div class="loan-cell"><div class="cell-lbl">Rate</div><div class="cell-val">{% widthratio loan.interest_rate 1 100 %}%</div></div>
+          <div class="loan-cell"><div class="cell-lbl">Period</div><div class="cell-val">{{ loan.repayment_period }}mo</div></div>
+          <div class="loan-cell"><div class="cell-lbl">Terms</div><div class="cell-val">{% if loan.terms_accepted %}Accepted{% else %}Pending{% endif %}</div></div>
+        </div>
+        <div class="action-strip" onclick="event.stopPropagation()">
+          {% if loan.terms_accepted and not loan.funded %}
+          <form method="POST" action="{% url 'fund_loan' loan.id %}" style="display:inline;" onclick="event.stopPropagation()">
+              {% csrf_token %}
+              <button type="submit" class="adm-btn btn-fund" onclick="return confirm('Disburse KES {{ loan.qualified_amount|floatformat:0 }} to {{ loan.user.get_full_name }}?')">💸 Disburse Funds</button>
+            </form>
+          {% endif %}
+          <button class="adm-btn btn-reject" onclick="toggleForm('rev-reject-{{ loan.id }}')">Revoke Approval</button>
+        </div>
+        <div class="inline-form" onclick="event.stopPropagation()" id="rev-reject-{{ loan.id }}">
+          <form method="POST" action="{% url 'admin_reject_loan' loan.id %}">
+            {% csrf_token %}
+            <textarea name="rejection_reason" class="adm-input" placeholder="Reason for revoking approval…" required></textarea>
+            <div class="form-actions">
+              <button type="submit" class="adm-btn btn-reject">Confirm Revoke</button>
+              <button type="button" class="adm-btn btn-view" onclick="toggleForm('rev-reject-{{ loan.id }}')">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state"><div class="icon">📋</div>No approved loans awaiting disbursement.</div>
+    {% endif %}
+  </div>
+
+  <!-- ── FUNDED / ACTIVE ── -->
+  <div class="adm-panel" id="tab-funded">
+    <div class="section-hdr">Active loans — currently funded</div>
+    {% if funded %}
+      {% for loan in funded %}
+      <div class="loan-row">
+        <div class="loan-row-top">
+          <div>
+            <div class="loan-applicant">{{ loan.full_name }}</div>
+            <div class="loan-meta" onclick="window.location='{% url "admin_loan_detail" loan.id %}'" style="cursor:pointer;">#{{ loan.id }} · funded {{ loan.funded_at|timesince }} ago — <span style="color:#d97706;">click to review</span></div>
+          </div>
+          <span class="pill pill-funded">💸 Active</span>
+        </div>
+        <div class="loan-grid">
+          <div class="loan-cell"><div class="cell-lbl">Principal</div><div class="cell-val">KES {{ loan.qualified_amount|floatformat:0 }}</div></div>
+          <div class="loan-cell"><div class="cell-lbl">Outstanding</div><div class="cell-val">KES {{ loan.amount_remaining|floatformat:0 }}</div></div>
+          <div class="loan-cell"><div class="cell-lbl">Period</div><div class="cell-val">{{ loan.repayment_period }}mo</div></div>
+          <div class="loan-cell"><div class="cell-lbl">Repaid</div><div class="cell-val">{% if loan.fully_repaid %}Yes ✓{% else %}No{% endif %}</div></div>
+        </div>
+        <div class="action-strip" onclick="event.stopPropagation()">
+          <a href="{% url 'repayment_schedule' loan.id %}" class="adm-btn btn-view">View Schedule</a>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state"><div class="icon">📊</div>No active loans.</div>
+    {% endif %}
+  </div>
+
+  <!-- ── REJECTED ── -->
+  <div class="adm-panel" id="tab-rejected">
+    <div class="section-hdr">Rejected applications</div>
+    {% if rejected %}
+      {% for loan in rejected %}
+      <div class="loan-row">
+        <div class="loan-row-top">
+          <div>
+            <div class="loan-applicant">{{ loan.full_name }}</div>
+            <div class="loan-meta" onclick="window.location='{% url "admin_loan_detail" loan.id %}'" style="cursor:pointer;">#{{ loan.id }} · {{ loan.created_at|timesince }} ago</div>
+          </div>
+          <span class="pill pill-rejected">✕ Rejected</span>
+        </div>
+        <div style="font-size:0.8rem; color:#fca5a5; margin-top:0.25rem;">
+          {{ loan.rejection_reason|default:"No reason recorded" }}
+          <div style="margin-top:0.75rem;display:flex;gap:0.5rem;" onclick="event.stopPropagation()">
+            <form method="POST" action="{% url 'admin_reevaluate_loan' loan.id %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="adm-btn" style="background:rgba(217,119,6,0.15);color:#d97706;border:1px solid rgba(217,119,6,0.3);font-size:0.72rem;padding:0.3rem 0.85rem;">↩ Re-evaluate</button>
+            </form>
+            <form method="POST" action="{% url 'admin_delete_loan' loan.id %}" style="display:inline;" onsubmit="return confirm('Delete this loan permanently?')">
+              {% csrf_token %}
+              <button type="submit" class="adm-btn" style="background:rgba(239,68,68,0.1);color:#dc2626;border:1px solid rgba(239,68,68,0.3);font-size:0.72rem;padding:0.3rem 0.85rem;">🗑 Delete</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state"><div class="icon">🗂</div>No rejections yet.</div>
+    {% endif %}
+  </div>
+
+  <!-- ── ALL LOANS ── -->
+  <div class="adm-panel" id="tab-all">
+    <div class="section-hdr">All loan applications — {{ all_loans|length }} total</div>
+    {% if all_loans %}
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border); color:var(--muted); text-transform:uppercase; font-size:0.65rem; letter-spacing:0.08em;">
+            <th style="padding:0.6rem 0.8rem; text-align:left;">ID</th>
+            <th style="padding:0.6rem 0.8rem; text-align:left;">Applicant</th>
+            <th style="padding:0.6rem 0.8rem; text-align:left;">Amount</th>
+            <th style="padding:0.6rem 0.8rem; text-align:left;">Status</th>
+            <th style="padding:0.6rem 0.8rem; text-align:left;">Fraud</th>
+            <th style="padding:0.6rem 0.8rem; text-align:left;">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for loan in all_loans %}
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.6rem 0.8rem; color:var(--dim);">#{{ loan.id }}</td>
+            <td style="padding:0.6rem 0.8rem; color:#e2e8f0; font-weight:600;">{{ loan.full_name }}</td>
+            <td style="padding:0.6rem 0.8rem;">KES {{ loan.qualified_amount|floatformat:0 }}</td>
+            <td style="padding:0.6rem 0.8rem;">
+              <span class="pill pill-{% if loan.status == 'Approved' %}approved{% elif loan.status == 'Rejected' %}rejected{% elif loan.status == 'Funded' %}funded{% else %}pending{% endif %}">
+                {{ loan.status }}
+              </span>
+            </td>
+            <td style="padding:0.6rem 0.8rem; color:{% if loan.fraud_score > 0.5 %}var(--red){% else %}var(--green){% endif %};">
+              {% widthratio loan.fraud_score 1 100 %}%
+            </td>
+            <td style="padding:0.6rem 0.8rem; color:var(--dim);">{{ loan.created_at|date:"d M Y" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state"><div class="icon">📂</div>No loans yet.</div>
+    {% endif %}
+  </div>
+
+  <!-- ── SYSTEM ── -->
+  <div class="adm-panel" id="tab-system">
+    <div class="section-hdr">System overview & controls</div>
+    <div class="sys-grid">
+
+      <div class="sys-card">
+        <div class="sys-card-title">System Wallet Balance</div>
+        <div class="sys-value">KES {{ system_wallet.balance|floatformat:0 }}</div>
+        <div class="sys-sub">Available for disbursement</div>
+        <div class="sys-action">
+          <a href="{% url 'admin_finance_dashboard' %}" class="adm-btn btn-info" style="font-size:0.75rem;">
+            Finance Dashboard →
+          </a>
+        </div>
+      </div>
+
+      <div class="sys-card">
+        <div class="sys-card-title">Total Users</div>
+        <div class="sys-value">{{ stats.total_users }}</div>
+        <div class="sys-sub">Registered accounts</div>
+        <div class="sys-action">
+          <a href="/admin/auth/user/" class="adm-btn btn-view" style="font-size:0.75rem;">
+            Manage Users →
+          </a>
+        </div>
+      </div>
+
+      <div class="sys-card">
+        <div class="sys-card-title">Fraud Flagged</div>
+        <div class="sys-value" style="color:var(--red);">{{ stats.fraud_flagged }}</div>
+        <div class="sys-sub">Applications with fraud flag</div>
+      </div>
+
+      <div class="sys-card">
+        <div class="sys-card-title">Repayment Rate</div>
+        <div class="sys-value" style="color:var(--green);">{{ stats.repayment_rate }}%</div>
+        <div class="sys-sub">Fully repaid / total funded</div>
+      </div>
+
+      <div class="sys-card">
+        <div class="sys-card-title">Django Admin</div>
+        <div class="sys-sub" style="margin-top:0.5rem;">Full database access and model management</div>
+        <div class="sys-action">
+          <a href="/admin/" class="adm-btn btn-view" style="font-size:0.75rem;">Open Django Admin →</a>
+        </div>
+      </div>
+
+      <div class="sys-card">
+        <div class="sys-card-title">Support Tickets</div>
+        <div class="sys-value">{{ stats.open_tickets }}</div>
+        <div class="sys-sub">Open tickets</div>
+        <div class="sys-action">
+          <a href="#" class="adm-btn btn-view" style="font-size:0.75rem;">View Tickets →</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showTab(name, btn) {
+  document.querySelectorAll('.adm-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.adm-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function toggleForm(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+</script>
+{% endblock %}

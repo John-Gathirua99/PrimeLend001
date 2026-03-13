@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+{% block title %}Face Verification — KYC{% endblock %}
+
+{% block extra_css %}
+<style>
+  .kyc { --navy:#0f172a; --gold:#d97706; --green:#16a34a; --red:#dc2626; --border:#e2e8f0; }
+
+  .kyc-title { font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--navy); margin-bottom:0.25rem; }
+  .kyc-sub   { font-size:0.85rem; color:#64748b; margin-bottom:1.5rem; }
+
+  /* Steps indicator */
+  .kyc-steps { display:flex; align-items:center; gap:0; margin-bottom:2rem; }
+  .kyc-step  { display:flex; align-items:center; gap:0.5rem; font-size:0.75rem; font-weight:600; }
+  .kyc-step-num { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:700; border:2px solid var(--border); color:#94a3b8; background:#fff; flex-shrink:0; }
+  .kyc-step.active .kyc-step-num { background:var(--navy); color:#fff; border-color:var(--navy); }
+  .kyc-step.done   .kyc-step-num { background:var(--green); color:#fff; border-color:var(--green); }
+  .kyc-step-lbl { color:#94a3b8; }
+  .kyc-step.active .kyc-step-lbl { color:var(--navy); }
+  .kyc-step.done   .kyc-step-lbl { color:var(--green); }
+  .kyc-step-line { flex:1; height:2px; background:var(--border); margin:0 0.5rem; }
+
+  /* Camera area */
+  .kyc-cam-wrap {
+    position:relative; border-radius:16px; overflow:hidden;
+    background:#0f172a; margin-bottom:1.25rem;
+    aspect-ratio:4/3; max-height:360px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #kyc-video { width:100%; height:100%; object-fit:cover; display:block; transform:scaleX(-1); }
+  #kyc-canvas { display:none; }
+
+  /* Face guide overlay */
+  .kyc-overlay {
+    position:absolute; inset:0; pointer-events:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .kyc-face-guide {
+    width:160px; height:200px; border:3px solid rgba(255,255,255,0.5);
+    border-radius:50%; box-shadow:0 0 0 9999px rgba(0,0,0,0.35);
+    transition:border-color 0.3s;
+  }
+  .kyc-face-guide.good { border-color:#22c55e; box-shadow:0 0 0 9999px rgba(0,0,0,0.35), 0 0 0 3px #22c55e; }
+
+  .kyc-cam-tip {
+    position:absolute; bottom:1rem; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.65); color:#fff; font-size:0.72rem;
+    padding:0.3rem 0.85rem; border-radius:99px; white-space:nowrap;
+  }
+
+  /* Result preview */
+  .kyc-preview { display:none; text-align:center; margin-bottom:1.25rem; }
+  .kyc-preview img { width:140px; height:140px; border-radius:50%; object-fit:cover; border:4px solid var(--gold); }
+
+  /* Status cards */
+  .kyc-status { border-radius:12px; padding:1rem 1.25rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.75rem; font-size:0.85rem; }
+  .kyc-status.checking { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; }
+  .kyc-status.success  { background:#dcfce7; border:1px solid #86efac; color:#166534; }
+  .kyc-status.fail     { background:#fee2e2; border:1px solid #fca5a5; color:#991b1b; }
+  .kyc-status.warn     { background:#fef3c7; border:1px solid #fde68a; color:#92400e; }
+  .kyc-status-icon { font-size:1.3rem; flex-shrink:0; }
+  .kyc-confidence { font-size:0.72rem; margin-top:0.2rem; opacity:0.75; }
+
+  /* Buttons */
+  .kyc-btn {
+    width:100%; padding:0.75rem; border:none; border-radius:10px;
+    font-size:0.9rem; font-weight:600; cursor:pointer; transition:all 0.18s;
+    margin-bottom:0.6rem;
+  }
+  .kyc-btn-capture  { background:var(--navy); color:#fff; }
+  .kyc-btn-capture:hover  { background:#1e3a5f; }
+  .kyc-btn-retake   { background:#f1f5f9; color:var(--navy); }
+  .kyc-btn-retake:hover   { background:#e2e8f0; }
+  .kyc-btn-continue { background:var(--green); color:#fff; display:none; }
+  .kyc-btn-continue:hover { background:#15803d; }
+  .kyc-btn-skip     { background:transparent; color:#94a3b8; border:1px solid var(--border); }
+  .kyc-btn-skip:hover     { color:var(--navy); border-color:#94a3b8; }
+
+  .kyc-spinner { display:inline-block; width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:0.4rem; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kyc">
+
+  <div class="kyc-title"><i class="bi bi-person-badge me-2" style="color:var(--gold);"></i>Identity Verification</div>
+  <div class="kyc-sub">Take a quick selfie to verify your identity matches your ID document. This keeps your account secure.</div>
+
+  <!-- Steps -->
+  <div class="kyc-steps">
+    <div class="kyc-step done" id="step1"><div class="kyc-step-num">✓</div><div class="kyc-step-lbl">ID Uploaded</div></div>
+    <div class="kyc-step-line"></div>
+    <div class="kyc-step active" id="step2"><div class="kyc-step-num">2</div><div class="kyc-step-lbl">Face Selfie</div></div>
+    <div class="kyc-step-line"></div>
+    <div class="kyc-step" id="step3"><div class="kyc-step-num">3</div><div class="kyc-step-lbl">Verified</div></div>
+  </div>
+
+  <!-- Camera -->
+  <div class="kyc-cam-wrap" id="camWrap">
+    <video id="kyc-video" autoplay playsinline></video>
+    <canvas id="kyc-canvas"></canvas>
+    <div class="kyc-overlay"><div class="kyc-face-guide" id="faceGuide"></div></div>
+    <div class="kyc-cam-tip" id="camTip">Position your face in the circle</div>
+  </div>
+
+  <!-- Selfie preview -->
+  <div class="kyc-preview" id="preview">
+    <img id="previewImg" src="" alt="Your selfie">
+    <div style="margin-top:0.5rem;font-size:0.78rem;color:#64748b;">Your captured selfie</div>
+  </div>
+
+  <!-- Status -->
+  <div id="kycStatus" style="display:none;"></div>
+
+  <!-- Buttons -->
+  <button class="kyc-btn kyc-btn-capture" id="btnCapture" onclick="capturePhoto()">
+    <i class="bi bi-camera-fill me-2"></i>Take Selfie
+  </button>
+  <button class="kyc-btn kyc-btn-retake" id="btnRetake" style="display:none;" onclick="retake()">
+    <i class="bi bi-arrow-counterclockwise me-2"></i>Retake Photo
+  </button>
+  <button class="kyc-btn kyc-btn-continue" id="btnContinue" onclick="proceed()">
+    <i class="bi bi-check-circle me-2"></i>Continue to Loan Application
+  </button>
+
+  <form id="kycForm" method="POST" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="selfie_b64" id="selfieInput">
+    <input type="hidden" name="kyc_action" value="verify">
+  </form>
+
+  <hr style="margin:1rem 0;border-color:var(--border);">
+  <button class="kyc-btn kyc-btn-skip" onclick="skipKyc()">
+    Skip for now (verification may be required later)
+  </button>
+
+</div>
+
+<script>
+let stream = null;
+let capturedB64 = null;
+
+// Start camera
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width:{ideal:640}, height:{ideal:480}, facingMode:'user' }
+    });
+    document.getElementById('kyc-video').srcObject = stream;
+    startFaceDetection();
+  } catch(e) {
+    showStatus('warn', '⚠', 'Camera access denied. Please allow camera and refresh.', '');
+    document.getElementById('btnCapture').disabled = true;
+  }
+}
+
+// Simple brightness-based face detection hint
+function startFaceDetection() {
+  const guide = document.getElementById('faceGuide');
+  const tip   = document.getElementById('camTip');
+  let ok = false;
+  setInterval(function() {
+    const v = document.getElementById('kyc-video');
+    if (!v.videoWidth) return;
+    const c = document.createElement('canvas');
+    c.width = 80; c.height = 80;
+    const ctx = c.getContext('2d');
+    // Sample center region
+    ctx.drawImage(v, v.videoWidth*0.3, v.videoHeight*0.2, v.videoWidth*0.4, v.videoHeight*0.6, 0, 0, 80, 80);
+    const d = ctx.getImageData(0,0,80,80).data;
+    let brightness = 0;
+    for(let i=0;i<d.length;i+=4) brightness += (d[i]+d[i+1]+d[i+2])/3;
+    brightness /= (d.length/4);
+    const good = brightness > 60 && brightness < 220;
+    if(good !== ok) {
+      ok = good;
+      guide.classList.toggle('good', good);
+      tip.textContent = good ? 'Good — press Take Selfie' : 'Adjust lighting or position';
+    }
+  }, 800);
+}
+
+function capturePhoto() {
+  const video  = document.getElementById('kyc-video');
+  const canvas = document.getElementById('kyc-canvas');
+  // Use full video resolution for better face detection
+  canvas.width  = video.videoWidth  || 1280;
+  canvas.height = video.videoHeight || 720;
+  const ctx = canvas.getContext('2d');
+  // Mirror back (since video is mirrored CSS)
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0);
+
+  // Higher quality capture
+  capturedB64 = canvas.toDataURL('image/jpeg', 0.95);
+
+  // Show preview
+  document.getElementById('previewImg').src = capturedB64;
+  document.getElementById('preview').style.display = 'block';
+  document.getElementById('camWrap').style.display = 'none';
+  document.getElementById('btnCapture').style.display = 'none';
+  document.getElementById('btnRetake').style.display = 'block';
+
+  stopCamera();
+  verifyFace(capturedB64);
+}
+
+function retake() {
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('camWrap').style.display = 'flex';
+  document.getElementById('btnCapture').style.display = 'block';
+  document.getElementById('btnRetake').style.display = 'none';
+  document.getElementById('btnContinue').style.display = 'none';
+  document.getElementById('kycStatus').style.display = 'none';
+  capturedB64 = null;
+  startCamera();
+}
+
+function stopCamera() {
+  if(stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+}
+
+async function verifyFace(b64) {
+  showStatus('checking', '<span class="kyc-spinner"></span>', 'Verifying your identity…', 'Comparing selfie with your ID document');
+
+  // 2-minute timeout — show countdown then allow redo
+  let secondsLeft = 120;
+  const countdown = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft <= 30 && secondsLeft > 0) {
+      showStatus('checking', '<span class="kyc-spinner"></span>',
+        `Verifying your identity… (${secondsLeft}s)`,
+        'This is taking longer than usual — almost done');
+    }
+    if (secondsLeft <= 0) {
+      clearInterval(countdown);
+      showStatus('warn', '⏱', 'Verification timed out.',
+        'This can happen with large ID photos. Please try again.');
+      document.getElementById('btnRetake').style.display = 'block';
+      document.getElementById('btnContinue').style.display = 'block';
+      document.getElementById('btnContinue').style.background = '#d97706';
+      document.getElementById('btnContinue').innerHTML =
+        '<i class="bi bi-exclamation-triangle me-2"></i>Continue Anyway (manual review)';
+    }
+  }, 1000);
+
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), 120000); // 2 min hard abort
+
+  try {
+    const resp = await fetch('{% url "kyc_verify_ajax" %}', {
+      signal: controller.signal,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      },
+      body: JSON.stringify({ selfie_b64: b64, loan_id: '{{ loan_id|default:"" }}' })
+    });
+    clearInterval(countdown);
+    clearTimeout(timeoutId);
+    const data = await resp.json();
+
+    if(data.blocked) {
+      // Face found on another account — hard block
+      showStatus('fail', '🚫', data.error,
+        'If you believe this is an error, contact support.');
+      document.getElementById('btnRetake').style.display = 'none';
+      document.getElementById('btnContinue').style.display = 'none';
+      // Add login link
+      const statusEl = document.getElementById('kycStatus');
+      const loginBtn = document.createElement('a');
+      loginBtn.href = '/accounts/login/';
+      loginBtn.className = 'kyc-btn kyc-btn-capture';
+      loginBtn.style.cssText = 'display:block;text-align:center;text-decoration:none;margin-top:0.75rem;background:#dc2626;';
+      loginBtn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Log In to Your Account';
+      statusEl.after(loginBtn);
+      return;
+    }
+
+    // Store redirect URL from backend (points to finalize_loan)
+    window._kycRedirect = data.redirect || '/loans/my-loans/';
+
+    if(data.match) {
+      document.getElementById('step3').classList.add('done');
+      document.getElementById('step2').classList.remove('active');
+      document.getElementById('step2').classList.add('done');
+      document.getElementById('step3').querySelector('.kyc-step-num').textContent = '✓';
+      showStatus('success', '✅', 'Identity verified! Calculating your loan offer…',
+        `Face match confidence: ${Math.round(data.confidence*100)}%`);
+      document.getElementById('btnContinue').style.display = 'block';
+      document.getElementById('btnContinue').innerHTML = '<i class="bi bi-check-circle me-2"></i>Get My Loan Decision';
+    } else if(data.error) {
+      showStatus('warn', '⚠', data.error, 'Please retake your photo in good lighting');
+    } else {
+      showStatus('fail', '❌', 'Face does not match your ID document.',
+        'Please ensure you are the same person on the ID. Contact support if this is an error.');
+      document.getElementById('btnContinue').style.display = 'block';
+      document.getElementById('btnContinue').style.background = '#d97706';
+      document.getElementById('btnContinue').innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Continue Anyway (flagged for review)';
+    }
+  } catch(e) {
+    clearInterval(countdown);
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') {
+      showStatus('warn', '⏱', 'Verification timed out (2 minutes).', 'Please retake your photo or continue for manual review.');
+    } else {
+      showStatus('warn', '⚠', 'Verification service unavailable.', 'You can continue — your application will be reviewed manually.');
+    }
+    document.getElementById('btnRetake').style.display = 'block';
+    document.getElementById('btnContinue').style.display = 'block';
+    document.getElementById('btnContinue').style.background = '#d97706';
+    document.getElementById('btnContinue').innerHTML =
+      '<i class="bi bi-exclamation-triangle me-2"></i>Continue Anyway (manual review)';
+    // Still redirect to finalize so loan gets processed
+    window._kycRedirect = window._kycRedirect || '/loans/my-loans/';
+  }
+}
+
+function showStatus(type, icon, msg, sub) {
+  const el = document.getElementById('kycStatus');
+  el.style.display = 'flex';
+  el.className = 'kyc-status ' + type;
+  el.innerHTML = `<div class="kyc-status-icon">${icon}</div><div><div>${msg}</div>${sub ? '<div class="kyc-confidence">'+sub+'</div>' : ''}</div>`;
+}
+
+function proceed() {
+  // Redirect to finalize_loan — backend re-scores with KYC result
+  const url = window._kycRedirect || '/loans/my-loans/';
+  window.location.href = url;
+}
+
+function skipKyc() {
+  if(confirm('Skip face verification? Your loan limit will be reduced and application flagged for manual review.')) {
+    const url = window._kycRedirect || '/loans/my-loans/';
+    window.location.href = url;
+  }
+}
+
+startCamera();
+window.addEventListener('beforeunload', stopCamera);
+</script>
+{% endblock %}

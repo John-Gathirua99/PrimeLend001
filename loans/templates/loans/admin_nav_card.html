@@ -1,0 +1,16 @@
+{% comment %}
+Include as:
+{% include "loans/admin_nav_card.html" with label="..." url="..." desc="..." badge="..." %}
+{% endcomment %}
+<div class="anav-card">
+  <div class="anav-card-line"></div>
+  <div class="anav-card-top">
+    <span class="anav-card-label">{{ label }}</span>
+    {% if badge %}<span class="anav-badge">{{ badge }}</span>{% endif %}
+  </div>
+  <div class="anav-card-desc">{{ desc }}</div>
+  <div class="anav-card-actions">
+    <a href="{{ url }}" target="_blank" class="anav-open-btn">OPEN →</a>
+    <button class="anav-copy-btn" data-url="{{ url }}" title="Copy URL">⎘</button>
+  </div>
+</div>

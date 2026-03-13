@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}My Support Tickets{% endblock %}
+{% block extra_css %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+body { font-family: 'DM Sans', sans-serif; background: #f8fafc; }
+.hd-wrap { max-width: 780px; margin: 0 auto; padding: 2rem 1.25rem; }
+.hd-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: .75rem; }
+.hd-title { font-family: 'Space Mono', monospace; font-size: 1rem; font-weight: 700; color: #0f172a; }
+.hd-sub { font-size: .8rem; color: #64748b; margin-top: 3px; }
+.new-btn { background: #0f172a; color: #fff; border: none; padding: .6rem 1.4rem; border-radius: 99px; font-size: .82rem; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: .4rem; }
+.new-btn:hover { background: #1e293b; color: #fff; }
+.tabs { display: flex; gap: .5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.tab { padding: .4rem 1rem; border-radius: 99px; font-size: .78rem; font-weight: 700; cursor: pointer; border: none; background: #f1f5f9; color: #64748b; transition: all .15s; }
+.tab.active { background: #0f172a; color: #fff; }
+.tab:hover:not(.active) { background: #e2e8f0; }
+.ticket-section { display: none; }
+.ticket-section.active { display: block; }
+.ticket-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.1rem 1.3rem; margin-bottom: .85rem; display: flex; align-items: center; gap: 1rem; cursor: pointer; text-decoration: none; color: inherit; transition: box-shadow .15s; }
+.ticket-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.07); color: inherit; text-decoration: none; }
+.ticket-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+.ticket-body { flex: 1; min-width: 0; }
+.ticket-subject { font-size: .88rem; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket-meta { font-size: .72rem; color: #94a3b8; margin-top: 2px; }
+.ticket-rating { font-size: .78rem; color: #f59e0b; }
+.status-pill { font-size: .68rem; font-weight: 700; padding: .25rem .7rem; border-radius: 99px; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.pill-ai     { background: #eff6ff; color: #1d4ed8; }
+.pill-admin  { background: #fef3c7; color: #92400e; }
+.pill-open   { background: #f0fdf4; color: #166534; }
+.pill-closed { background: #f1f5f9; color: #64748b; }
+.empty { text-align: center; padding: 3rem; color: #94a3b8; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="hd-wrap">
+  <div class="hd-header">
+    <div>
+      <div class="hd-title">My Support Tickets</div>
+      <div class="hd-sub">Track your support requests and replies from our team</div>
+    </div>
+    <a href="{% url 'create_ticket' %}" class="new-btn">+ New Ticket</a>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('all', this)">All ({{ tickets|length }})</button>
+    <button class="tab" onclick="showTab('open', this)">Active</button>
+    <button class="tab" onclick="showTab('closed', this)">Resolved</button>
+  </div>
+
+  <div id="tab-all" class="ticket-section active">
+    {% for ticket in tickets %}
+    <a href="{% url 'ticket_chat' ticket.id %}" class="ticket-card">
+      <div class="ticket-icon" style="background:{% if ticket.status == 'ADMIN' %}#fef3c7{% elif ticket.status == 'AI' %}#eff6ff{% elif ticket.status == 'CLOSED' %}#f1f5f9{% else %}#f0fdf4{% endif %}">
+        {% if ticket.status == 'AI' %}&#129302;{% elif ticket.status == 'ADMIN' %}&#128100;{% elif ticket.status == 'CLOSED' %}&#10003;{% else %}&#128203;{% endif %}
+      </div>
+      <div class="ticket-body">
+        <div class="ticket-subject">{{ ticket.subject }}</div>
+        <div class="ticket-meta">
+          Ticket #{{ ticket.id }} &nbsp;·&nbsp; {{ ticket.created_at|date:"d M Y" }}
+          {% if ticket.status == 'CLOSED' and ticket.rating %}
+          &nbsp;·&nbsp; <span class="ticket-rating">{% for i in "12345" %}{% if forloop.counter <= ticket.rating %}&#9733;{% else %}&#9734;{% endif %}{% endfor %}</span>
+          {% endif %}
+        </div>
+      </div>
+      <span class="status-pill {% if ticket.status == 'AI' %}pill-ai{% elif ticket.status == 'ADMIN' %}pill-admin{% elif ticket.status == 'CLOSED' %}pill-closed{% else %}pill-open{% endif %}">
+        {{ ticket.get_status_display }}
+      </span>
+    </a>
+    {% empty %}
+    <div class="empty">
+      <div style="font-size:2.5rem;margin-bottom:1rem;">&#127903;</div>
+      <p>No tickets yet.</p>
+      <a href="{% url 'create_ticket' %}" class="new-btn mt-2">+ New Ticket</a>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div id="tab-open" class="ticket-section">
+    {% for ticket in tickets %}{% if ticket.status != 'CLOSED' %}
+    <a href="{% url 'ticket_chat' ticket.id %}" class="ticket-card">
+      <div class="ticket-icon" style="background:{% if ticket.status == 'ADMIN' %}#fef3c7{% else %}#eff6ff{% endif %}">
+        {% if ticket.status == 'ADMIN' %}&#128100;{% else %}&#129302;{% endif %}
+      </div>
+      <div class="ticket-body">
+        <div class="ticket-subject">{{ ticket.subject }}</div>
+        <div class="ticket-meta">Ticket #{{ ticket.id }} &nbsp;·&nbsp; {{ ticket.created_at|date:"d M Y" }}</div>
+      </div>
+      <span class="status-pill {% if ticket.status == 'ADMIN' %}pill-admin{% else %}pill-ai{% endif %}">{{ ticket.get_status_display }}</span>
+    </a>
+    {% endif %}{% endfor %}
+  </div>
+
+  <div id="tab-closed" class="ticket-section">
+    {% for ticket in tickets %}{% if ticket.status == 'CLOSED' %}
+    <a href="{% url 'ticket_chat' ticket.id %}" class="ticket-card">
+      <div class="ticket-icon" style="background:#f1f5f9;">&#10003;</div>
+      <div class="ticket-body">
+        <div class="ticket-subject">{{ ticket.subject }}</div>
+        <div class="ticket-meta">
+          Ticket #{{ ticket.id }} &nbsp;·&nbsp; {{ ticket.created_at|date:"d M Y" }}
+          {% if ticket.rating %}&nbsp;·&nbsp; <span class="ticket-rating">{% for i in "12345" %}{% if forloop.counter <= ticket.rating %}&#9733;{% else %}&#9734;{% endif %}{% endfor %}</span>{% endif %}
+        </div>
+      </div>
+      <span class="status-pill pill-closed">Resolved</span>
+    </a>
+    {% empty %}
+    {% endfor %}
+  </div>
+
+</div>
+<script>
+function showTab(name, el) {
+  document.querySelectorAll('.ticket-section').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+{% endblock %}
