@@ -1,6 +1,15 @@
-import pandas as pd
-import numpy as np
-import joblib
+try:
+    import pandas
+except ImportError:
+    pandas = None  # not available in production as pd
+try:
+    import numpy
+except ImportError:
+    numpy = None  # not available in production as np
+try:
+    import joblib
+except ImportError:
+    joblib = None  # not available in production
 import json
 import os
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier

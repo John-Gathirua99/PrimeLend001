@@ -47,9 +47,12 @@ def _load_ocr():
 
 def _preprocess(img):
     """2x upscale + grayscale - best for hand-held ID photos."""
-    import cv2
-    img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    try:
+        import cv2
+    except ImportError:
+        cv2 = None  # not available in production
+        img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 
 def _score_text(text):
@@ -89,8 +92,14 @@ def _score_text(text):
 
 
 def extract_text_from_id(image_file) -> str:
-    import cv2
-    import numpy as np
+    try:
+        import cv2
+    except ImportError:
+        cv2 = None  # not available in production
+    try:
+        import numpy
+    except ImportError:
+        numpy = None  # not available in production as np
     from PIL import Image as PILImage
 
     pytesseract = _load_ocr()

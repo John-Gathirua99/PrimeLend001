@@ -1,5 +1,11 @@
-import pandas as pd
-import joblib
+try:
+    import pandas
+except ImportError:
+    pandas = None  # not available in production as pd
+try:
+    import joblib
+except ImportError:
+    joblib = None  # not available in production
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler

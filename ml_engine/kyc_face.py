@@ -11,8 +11,14 @@ import tempfile
 from dataclasses import dataclass
 from typing import Optional
 
-import cv2
-import numpy as np
+try:
+    import cv2
+except ImportError:
+    cv2 = None  # not available in production
+try:
+    import numpy
+except ImportError:
+    numpy = None  # not available in production as np
 
 logger = logging.getLogger(__name__)
 

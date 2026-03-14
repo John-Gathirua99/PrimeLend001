@@ -1,5 +1,11 @@
-import joblib
-import pandas as pd
+try:
+    import joblib
+except ImportError:
+    joblib = None  # not available in production
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

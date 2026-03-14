@@ -13,3 +13,9 @@ class LoansConfig(AppConfig):
             send_due_today_reminders()
         except:
             pass
+
+
+
+
+
+
