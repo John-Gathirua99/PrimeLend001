@@ -7,14 +7,12 @@ django-widget-tweaks==1.5.1
 requests==2.32.3
 pillow==10.4.0
 reportlab==4.2.2
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.10
 dj-database-url==2.2.0
 python-dotenv==1.0.1
 PyJWT==2.9.0
 scikit-learn==1.5.2
 numpy==1.26.4
-pandas==2.2.3
-scipy==1.14.1
 joblib==1.4.2
 certifi==2024.8.30
 charset-normalizer==3.3.2
@@ -24,3 +22,4 @@ packaging==24.1
 six==1.16.0
 python-dateutil==2.9.0.post0
 tzdata==2024.2
+africastalking==2.0.2
