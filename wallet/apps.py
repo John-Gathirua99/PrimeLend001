@@ -6,11 +6,4 @@ class WalletConfig(AppConfig):
 
     def ready(self):
         import wallet.signals
-        from .models import SystemWallet
-        if not SystemWallet.objects.exists():
-            SystemWallet.objects.create(balance=500000)  # initial capital
-
-
-
-
-
+        # DB setup moved to post_migrate signal to avoid startup query errors
