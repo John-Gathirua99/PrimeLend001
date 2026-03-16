@@ -453,6 +453,7 @@ def apply_loan(request):
             boosted_limit = base_limit
 
         qualified_amount = Decimal(str(min(boosted_limit, 500_000)))
+        # ML model qualified amount will override after prediction for approved loans
 
         # ── Fraud detection ───────────────────────────────────────
         recent_apps = LoanApplication.objects.filter(
@@ -558,25 +559,26 @@ def apply_loan(request):
             interest_rate = Decimal("0")
             decision_reason = "Rejected: Fraud risk — " + ("; ".join(risk_reasons) if risk_reasons else "suspicious activity")
 
-        elif credit_decision == "Rejected" or adjusted_probability < 0.65:
+        elif credit_decision == "Rejected" or adjusted_probability < 0.45:
             status        = "Rejected"
             interest_rate = Decimal("0")
             decision_reason = f"Rejected: Credit profile insufficient (score: {adjusted_probability:.0%})"
 
-        elif credit_decision == "Review" or adjusted_probability < 0.82:
+        elif credit_decision in ("Review", "Under Review") or adjusted_probability < 0.82:
             status        = "Pending"
             interest_rate = max(Decimal("0.10"), Decimal("0.22") - rate_discount)
             decision_reason = f"Under manual review — score {adjusted_probability:.0%}"
 
         else:
             status = "Approved"
-            if fraud_score > 0.35:
-                base_rate = Decimal("0.28")
-            elif adjusted_probability < 0.90:
-                base_rate = Decimal("0.20")
-            else:
-                base_rate = Decimal("0.15")
-            interest_rate   = max(Decimal("0.08"), base_rate - rate_discount)
+            # Use ML model rate, apply trust discount
+            model_rate = prediction.get("interest_rate", Decimal("0.15"))
+            base_rate = Decimal(str(model_rate))
+            # Override qualified amount with ML recommendation
+            ml_qualified = prediction.get("qualified_amount", 0)
+            if ml_qualified and ml_qualified < float(qualified_amount):
+                qualified_amount = Decimal(str(ml_qualified))
+            interest_rate = max(Decimal("0.08"), base_rate - rate_discount)
             decision_reason = (
                 f"Approved — score: {adjusted_probability:.0%}, "
                 f"tier: {trust['label']}, KYC: ✓"

@@ -373,8 +373,53 @@ document.getElementById('idInput').addEventListener('input', function(){
 });
 
 // File preview — ID card size (160×101px = 85.6×54mm ratio)
+
+function checkImageQuality(file, callback) {
+  if (!file || !file.type.startsWith('image/')) { callback(true, ''); return; }
+  var img = new Image();
+  var url = URL.createObjectURL(file);
+  img.onload = function() {
+    var canvas = document.createElement('canvas');
+    var scale = Math.min(1, 400 / Math.max(img.width, img.height));
+    canvas.width = img.width * scale; canvas.height = img.height * scale;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    var data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    var brightness = 0, gray = [], mean = 0;
+    for (var i = 0; i < data.length; i += 4) {
+      var g = (data[i] + data[i+1] + data[i+2]) / 3;
+      brightness += g; gray.push(g); mean += g;
+    }
+    brightness /= gray.length; mean /= gray.length;
+    var variance = 0;
+    gray.forEach(function(g) { variance += (g-mean)*(g-mean); });
+    variance /= gray.length;
+    URL.revokeObjectURL(url);
+    if (brightness < 35) { callback(false, 'Image too dark — use better lighting.'); return; }
+    if (brightness > 245) { callback(false, 'Image too bright — reduce glare.'); return; }
+    if (variance < 80) { callback(false, 'Image appears blurry — take a clearer photo.'); return; }
+    if (img.width < 300) { callback(false, 'Image resolution too low — use a higher quality photo.'); return; }
+    callback(true, '');
+  };
+  img.src = url;
+}
+
 function setupPreview(inputId, prevId, imgId, nameId, pdfId, lblId, txtId) {
   document.getElementById(inputId).addEventListener('change', function(){
+    var f = this.files[0];
+    if (!f) return;
+    checkImageQuality(f, function(ok, msg) {
+      var warn = document.getElementById('idWarn');
+      if (!ok) {
+        warn.style.display = 'flex';
+        warn.innerHTML = '⚠ ' + msg;
+        document.getElementById(inputId).value = '';
+        document.getElementById(lblId).classList.remove('chosen');
+        document.getElementById(txtId).textContent = inputId === 'idFront' ? 'Upload front of ID' : 'Upload back of ID';
+        return;
+      }
+      warn.style.display = 'none';
+    });
     var f = this.files[0];
     if (!f) return;
     var kb   = (f.size/1024).toFixed(1);

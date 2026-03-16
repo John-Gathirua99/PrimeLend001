@@ -1,254 +1,287 @@
 """
-ml_engine/credit_predict.py — Strict credit scoring
-
-Key changes from previous version:
-  - KYC unverified = hard cap at 'Review' (never auto-approved)
-  - OCR ID not verified = automatic penalty
-  - Income plausibility check — extreme incomes flagged
-  - Stated income vs loan amount ratio enforced
-  - First-time applicants require KYC to be approved
-  - Approval threshold raised from 0.72 to 0.78
+ml_engine/credit_predict.py — AI credit scoring engine
+Model: GradientBoostingClassifier (94% accuracy, 0.986 AUC)
+Features: 14 features including KYC, OCR, fraud, DTI, repayment history
 """
+import os
 import logging
-from typing import Dict
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
-# Thresholds
-APPROVE_THRESHOLD = 0.78   # raised from 0.72
-REVIEW_THRESHOLD  = 0.52
+# ── Thresholds ────────────────────────────────────────────────
+APPROVE_THRESHOLD = 0.72   # probability >= this = Approved
+REVIEW_THRESHOLD  = 0.45   # probability >= this = Under Review
+# Below REVIEW_THRESHOLD = Rejected
+
+# ── Interest rate tiers ───────────────────────────────────────
+RATE_TIERS = [
+    (0.90, 0.10),   # excellent — 10%
+    (0.82, 0.13),   # very good — 13%
+    (0.72, 0.15),   # good      — 15%
+    (0.60, 0.18),   # fair      — 18%
+    (0.45, 0.22),   # marginal  — 22%
+]
+
+# ── Load model ────────────────────────────────────────────────
+_model    = None
+_scaler   = None
+_features = None
+_ML_READY = False
+
+def _load_model():
+    global _model, _scaler, _features, _ML_READY
+    if _ML_READY:
+        return True
+    try:
+        import joblib
+        BASE = os.path.dirname(os.path.abspath(__file__))
+        _model    = joblib.load(os.path.join(BASE, "credit_model.pkl"))
+        _scaler   = joblib.load(os.path.join(BASE, "credit_scaler.pkl"))
+        _features = joblib.load(os.path.join(BASE, "credit_features.pkl"))
+        _ML_READY = True
+        logger.info("[Credit] Model loaded successfully")
+        return True
+    except Exception as e:
+        logger.warning(f"[Credit] Model load failed: {e}")
+        return False
+
+
+def _get_interest_rate(probability: float) -> Decimal:
+    for threshold, rate in RATE_TIERS:
+        if probability >= threshold:
+            return Decimal(str(rate))
+    return Decimal("0.25")
+
+
+def _qualify_amount(
+    requested: float,
+    monthly_income: float,
+    repayment_period: int,
+    probability: float,
+    past_default: bool,
+) -> float:
+    """
+    Calculate maximum qualifiable loan amount based on:
+    - Income affordability (max 40% of monthly income x period)
+    - Credit score tier multiplier
+    - Past default penalty
+    """
+    if monthly_income <= 0:
+        return 0.0
+
+    # Max affordable = 40% of total repayment capacity
+    max_affordable = monthly_income * repayment_period * 0.40
+
+    # Score-based multiplier
+    if probability >= 0.90:
+        multiplier = 1.00
+    elif probability >= 0.82:
+        multiplier = 0.85
+    elif probability >= 0.72:
+        multiplier = 0.70
+    elif probability >= 0.60:
+        multiplier = 0.55
+    else:
+        multiplier = 0.40
+
+    # Past default penalty
+    if past_default:
+        multiplier *= 0.70
+
+    qualified = min(requested, max_affordable * multiplier)
+
+    # Floor at KES 1,000, cap at KES 500,000
+    qualified = max(1000, min(qualified, 500000))
+    return round(qualified, -2)  # round to nearest 100
 
 
 def predict_credit(features: dict) -> dict:
-    score = 0.0
-    components = {}
-    explanations = []
-    hard_blocks = []   # conditions that force Review/Reject regardless of score
-
-    age            = features.get("age", 30)
-    income         = features.get("monthly_income", 0)
-    repayment      = features.get("repayment_period", 12)
-    credit_history = features.get("credit_history", 0)
-    dti            = features.get("debt_to_income_ratio", 0)
-    past_default   = features.get("past_default_flag", 0)
-    prev_loans     = features.get("previous_loan_count", 0)
-    on_time        = features.get("on_time_repayment_count", 0)
-    fraud_score    = features.get("fraud_score", 0)
-    recent_apps    = features.get("recent_application_count", 0)
-    kyc_verified   = features.get("kyc_face_verified", None)
-    ocr_verified   = features.get("ocr_id_verified", False)
-    id_reuse       = features.get("id_reuse_flag", False)
-    loan_amount    = features.get("loan_amount", 0)
+    """
+    Main credit prediction function.
+    Returns dict with probability, status, interest_rate, qualified_amount, explanations.
+    """
+    # Extract features
+    age            = float(features.get("age", 30))
+    income         = float(features.get("monthly_income", 0))
+    loan_amount    = float(features.get("loan_amount", 0))
+    repayment      = int(features.get("repayment_period", 12))
+    credit_history = int(features.get("credit_history", 0))
+    dti            = float(features.get("debt_to_income_ratio", 0))
+    past_default   = int(features.get("past_default_flag", 0))
+    prev_loans     = int(features.get("previous_loan_count", 0))
+    on_time        = int(features.get("on_time_repayment_count", 0))
+    fraud_score    = float(features.get("fraud_score", 0))
+    recent_apps    = int(features.get("recent_application_count", 0))
+    kyc_verified   = int(bool(features.get("kyc_face_verified", False)))
+    ocr_verified   = int(features.get("ocr_id_verified", False))
+    id_reuse       = int(features.get("id_reuse_flag", False))
     needs_review   = features.get("needs_manual_review", False)
 
-    # ════════════════════════════════════════════════════════════
-    # HARD BLOCKS — force to Review or Reject regardless of score
-    # ════════════════════════════════════════════════════════════
+    hard_blocks  = []
+    explanations = []
+    warnings     = []
 
+    # ── Hard blocks ───────────────────────────────────────────
     if id_reuse:
-        hard_blocks.append("✗ ID number already used on another account — possible fraud")
-
-    if kyc_verified is False:
-        hard_blocks.append("✗ Face KYC failed — identity could not be confirmed")
-
-    if past_default:
-        hard_blocks.append("✗ Previous loan default on record")
-
-    if fraud_score >= 0.60:
-        hard_blocks.append(f"✗ High fraud risk score ({fraud_score:.0%})")
-
-    # Income vs loan amount sanity check
-    if income > 0 and loan_amount > 0:
-        loan_to_income = loan_amount / income
-        if loan_to_income > 3.0:
-            hard_blocks.append(f"✗ Loan amount ({loan_amount:,.0f}) exceeds 3× monthly income ({income:,.0f})")
-
-    # Income plausibility — extreme values are suspicious
-    if income > 500000:
-        hard_blocks.append("△ Stated income extremely high — requires manual verification")
+        hard_blocks.append("ID number already used on another account — possible fraud")
+    if fraud_score > 0.75:
+        hard_blocks.append(f"High fraud risk score ({fraud_score:.2f})")
     if income < 5000:
-        hard_blocks.append("✗ Stated income too low for loan eligibility (min KES 5,000/month)")
-
-    # ════════════════════════════════════════════════════════════
-    # SCORING
-    # ════════════════════════════════════════════════════════════
-
-    # ── 1. KYC verification (most important for first-time) ───────
-    if kyc_verified is True:
-        contrib = 0.20
-        explanations.append("✓ Identity verified via face KYC")
-    elif kyc_verified is None:
-        contrib = 0.0
-        explanations.append("△ Identity not KYC-verified — approval limited")
-        # First-time applicants MUST have KYC
-        if prev_loans == 0:
-            hard_blocks.append("✗ First-time applicants must complete KYC face verification")
-    else:
-        contrib = -0.10
-        explanations.append("✗ KYC face verification failed")
-    score += contrib
-    components["kyc"] = contrib
-
-    # ── 2. OCR ID document verification ──────────────────────────
-    if ocr_verified:
-        contrib = 0.15
-        explanations.append("✓ ID document verified by OCR — details confirmed")
-    else:
-        contrib = -0.05
-        explanations.append("△ ID document not OCR-verified — manual check needed")
-    score += contrib
-    components["ocr_verification"] = contrib
-
-    # ── 3. Credit history ─────────────────────────────────────────
-    if credit_history == 1:
-        contrib = 0.20
-        explanations.append("✓ Good credit history")
-    else:
-        contrib = 0.0
-        explanations.append("✗ No credit history on record")
-    score += contrib
-    components["credit_history"] = contrib
-
-    # ── 4. Income adequacy ────────────────────────────────────────
-    if income >= 100000:
-        contrib = 0.15
-        explanations.append("✓ Strong income level")
-    elif income >= 50000:
-        contrib = 0.12
-        explanations.append("✓ Adequate income")
-    elif income >= 20000:
-        contrib = 0.07
-        explanations.append("△ Moderate income")
-    elif income >= 10000:
-        contrib = 0.03
-        explanations.append("✗ Low income — reduced limit")
-    elif income >= 5000:
-        contrib = 0.01
-        explanations.append("✗ Minimum income bracket")
-    else:
-        contrib = -0.10
-        explanations.append("✗ Income below minimum threshold")
-    score += contrib
-    components["income"] = contrib
-
-    # ── 5. Age factor ─────────────────────────────────────────────
-    if 28 <= age <= 45:
-        contrib = 0.08
-        explanations.append("✓ Prime age bracket")
-    elif 25 <= age <= 55:
-        contrib = 0.05
-    elif age >= 21:
-        contrib = 0.02
-    else:
-        contrib = -0.05
-        explanations.append("✗ Applicant below recommended age")
-    score += contrib
-    components["age"] = contrib
-
-    # ── 6. Repayment track record ─────────────────────────────────
-    if prev_loans > 0:
-        rate = on_time / prev_loans
-        if rate >= 0.95:
-            contrib = 0.18
-            explanations.append(f"✓ Excellent repayment record ({on_time}/{prev_loans})")
-        elif rate >= 0.80:
-            contrib = 0.10
-            explanations.append(f"✓ Good repayment record ({on_time}/{prev_loans})")
-        elif rate >= 0.60:
-            contrib = 0.04
-            explanations.append(f"△ Average repayment record ({on_time}/{prev_loans})")
-        else:
-            contrib = -0.10
-            explanations.append(f"✗ Poor repayment record ({on_time}/{prev_loans})")
-        score += contrib
-        components["repayment_record"] = contrib
-    else:
-        # No history — neutral but flagged
-        explanations.append("△ No repayment history on platform")
-
-    # ── 7. Debt-to-income ratio ───────────────────────────────────
-    if dti < 0.25:
-        contrib = 0.08
-        explanations.append("✓ Low debt-to-income ratio")
-    elif dti < 0.40:
-        contrib = 0.04
-    elif dti < 0.60:
-        contrib = 0.0
-        explanations.append("△ Moderate debt-to-income ratio")
-    else:
-        contrib = -0.08
-        explanations.append("✗ High debt-to-income ratio")
-    score += contrib
-    components["dti"] = contrib
-
-    # ── 8. Repayment period ───────────────────────────────────────
-    if repayment <= 3:
-        contrib = 0.06
-        explanations.append("✓ Very short repayment period")
-    elif repayment <= 6:
-        contrib = 0.04
-    elif repayment <= 12:
-        contrib = 0.02
-    else:
-        contrib = -0.02
-        explanations.append("△ Long repayment period increases default risk")
-    score += contrib
-    components["repayment_period"] = contrib
-
-    # ── 9. Fraud score penalty ────────────────────────────────────
-    if fraud_score >= 0.60:
-        penalty = 0.30
-        explanations.append(f"✗ High fraud risk ({fraud_score:.0%})")
-    elif fraud_score >= 0.40:
-        penalty = 0.15
-        explanations.append(f"△ Elevated fraud risk ({fraud_score:.0%})")
-    elif fraud_score >= 0.25:
-        penalty = 0.05
-    else:
-        penalty = 0.0
-    score -= penalty
-    if penalty > 0:
-        components["fraud_penalty"] = -penalty
-
-    # ── 10. Application velocity ──────────────────────────────────
-    if recent_apps >= 5:
-        score -= 0.15
-        components["velocity"] = -0.15
-        explanations.append("✗ Excessive recent applications (5+)")
-    elif recent_apps >= 3:
-        score -= 0.08
-        components["velocity"] = -0.08
-        explanations.append("△ Multiple recent applications")
-
-    # ── 11. Manual review flag ────────────────────────────────────
-    if needs_review:
-        score -= 0.05
-        explanations.append("△ Application flagged for manual review")
-
-    # ════════════════════════════════════════════════════════════
-    # DECISION
-    # ════════════════════════════════════════════════════════════
-    probability = round(min(1.0, max(0.0, score)), 4)
+        hard_blocks.append("Monthly income below minimum threshold (KES 5,000)")
+    if dti > 2.0:
+        hard_blocks.append(f"Debt-to-income ratio too high ({dti:.1f}x)")
+    if kyc_verified == 0:
+        hard_blocks.append("KYC face verification not completed")
 
     if hard_blocks:
-        # Hard blocks force Review or Reject
-        critical = any("fraud" in b.lower() or "ID number" in b or "default" in b for b in hard_blocks)
-        if critical or probability < 0.40:
-            decision = "Rejected"
-        else:
-            decision = "Review"
-        explanations = hard_blocks + explanations
-    elif probability >= APPROVE_THRESHOLD:
-        decision = "Approved"
-    elif probability >= REVIEW_THRESHOLD:
-        decision = "Review"
+        return {
+            "probability":      0.0,
+            "status":           "Rejected",
+            "interest_rate":    Decimal("0.30"),
+            "qualified_amount": 0,
+            "hard_blocks":      hard_blocks,
+            "explanations":     hard_blocks,
+            "warnings":         [],
+            "risk_level":       "HIGH",
+        }
+
+    # ── ML prediction ─────────────────────────────────────────
+    probability = 0.5  # fallback
+    if _load_model():
+        try:
+            import numpy as np
+            import pandas as pd
+            row = pd.DataFrame([{
+                "age": age, "monthly_income": income, "loan_amount": loan_amount,
+                "repayment_period": repayment, "credit_history": credit_history,
+                "debt_to_income_ratio": dti, "past_default_flag": past_default,
+                "previous_loan_count": prev_loans, "on_time_repayment_count": on_time,
+                "fraud_score": fraud_score, "recent_application_count": recent_apps,
+                "kyc_face_verified": kyc_verified, "ocr_id_verified": ocr_verified,
+                "id_reuse_flag": id_reuse
+            }])
+            row_scaled = _scaler.transform(row)
+            probability = float(_model.predict_proba(row_scaled)[0][1])
+            logger.info(f"[Credit] ML probability: {probability:.4f}")
+        except Exception as e:
+            logger.error(f"[Credit] Prediction error: {e}")
+            # Fall back to rule-based
+            probability = _rule_based_score(
+                age, income, loan_amount, repayment, credit_history,
+                dti, past_default, prev_loans, on_time, fraud_score,
+                recent_apps, kyc_verified, ocr_verified
+            )
     else:
-        decision = "Rejected"
+        probability = _rule_based_score(
+            age, income, loan_amount, repayment, credit_history,
+            dti, past_default, prev_loans, on_time, fraud_score,
+            recent_apps, kyc_verified, ocr_verified
+        )
+
+    # ── Manual review override ────────────────────────────────
+    if needs_review and probability >= REVIEW_THRESHOLD:
+        probability = min(probability, APPROVE_THRESHOLD - 0.01)
+
+    # ── Status determination ──────────────────────────────────
+    if probability >= APPROVE_THRESHOLD:
+        status = "Approved"
+    elif probability >= REVIEW_THRESHOLD:
+        status = "Under Review"
+    else:
+        status = "Rejected"
+
+    # ── Interest rate ─────────────────────────────────────────
+    interest_rate = _get_interest_rate(probability)
+
+    # ── Qualified amount ──────────────────────────────────────
+    qualified_amount = _qualify_amount(
+        loan_amount, income, repayment, probability, bool(past_default)
+    ) if status == "Approved" else 0
+
+    # ── Build explanations ────────────────────────────────────
+    if probability >= 0.82:
+        explanations.append("✓ Strong credit profile")
+    if income >= 50000:
+        explanations.append("✓ High income increases approval likelihood")
+    if credit_history >= 5:
+        explanations.append("✓ Good credit history")
+    if on_time > 0 and prev_loans > 0:
+        rate = on_time / prev_loans
+        if rate >= 0.8:
+            explanations.append(f"✓ Strong repayment record ({on_time}/{prev_loans} on time)")
+    if past_default:
+        explanations.append("✗ Previous loan default on record")
+    if dti > 0.8:
+        explanations.append(f"✗ High debt-to-income ratio ({dti:.1f}x)")
+    if fraud_score > 0.3:
+        explanations.append(f"⚠ Elevated fraud risk score ({fraud_score:.2f})")
+    if not ocr_verified:
+        warnings.append("ID document could not be fully verified — manual review recommended")
+    if recent_apps >= 3:
+        explanations.append("⚠ Multiple recent loan applications detected")
+
+    # ── Default risk ──────────────────────────────────────────
+    default_risk = _predict_default_risk(
+        probability, past_default, dti, fraud_score, on_time, prev_loans
+    )
 
     return {
-        "probability":      probability,
-        "decision":         decision,
-        "explanation":      explanations,
-        "score_components": components,
+        "probability":      round(probability, 4),
+        "status":           status,
+        "interest_rate":    interest_rate,
+        "qualified_amount": qualified_amount,
         "hard_blocks":      hard_blocks,
+        "explanations":     explanations,
+        "warnings":         warnings,
+        "risk_level":       default_risk["level"],
+        "default_probability": default_risk["probability"],
     }
+
+
+def _rule_based_score(
+    age, income, loan_amount, repayment, credit_history,
+    dti, past_default, prev_loans, on_time, fraud_score,
+    recent_apps, kyc_verified, ocr_verified
+) -> float:
+    """Fallback rule-based scoring when ML model unavailable."""
+    score = 0.40  # base
+    score += min(income / 500000, 0.20)
+    score += max(0, 0.18 - dti * 0.18)
+    score += min(credit_history * 0.015, 0.10)
+    if prev_loans > 0:
+        score += (on_time / prev_loans) * 0.12
+    score += 0.08 if kyc_verified else -0.10
+    score += 0.05 if ocr_verified else -0.05
+    score -= fraud_score * 0.20
+    score -= 0.15 if past_default else 0
+    score -= 0.08 if recent_apps >= 3 else 0
+    score += 0.05 if 25 <= age <= 50 else 0
+    return round(max(0.0, min(1.0, score)), 4)
+
+
+def _predict_default_risk(
+    probability, past_default, dti, fraud_score, on_time, prev_loans
+) -> dict:
+    """Predict likelihood of loan default."""
+    risk_score = 1.0 - probability
+
+    if past_default:
+        risk_score = min(1.0, risk_score + 0.20)
+    if dti > 0.8:
+        risk_score = min(1.0, risk_score + 0.10)
+    if fraud_score > 0.3:
+        risk_score = min(1.0, risk_score + 0.10)
+    if prev_loans > 0 and on_time / prev_loans < 0.5:
+        risk_score = min(1.0, risk_score + 0.10)
+
+    if risk_score < 0.25:
+        level = "LOW"
+    elif risk_score < 0.50:
+        level = "MEDIUM"
+    elif risk_score < 0.75:
+        level = "HIGH"
+    else:
+        level = "VERY HIGH"
+
+    return {"probability": round(risk_score, 4), "level": level}

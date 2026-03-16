@@ -14,7 +14,7 @@ import logging
 try:
     import numpy
 except ImportError:
-    numpy = None  # not available in production as np
+    import numpy as np
 
 logger = logging.getLogger(__name__)
 

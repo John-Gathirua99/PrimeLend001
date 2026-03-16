@@ -46,13 +46,27 @@ def _load_ocr():
 
 
 def _preprocess(img):
-    """2x upscale + grayscale - best for hand-held ID photos."""
+    """Enhanced preprocessing for Kenyan ID photos."""
+    import cv2
+    import numpy as np
+    h, w = img.shape[:2]
+    # Upscale to at least 2000px wide
+    if w < 2000:
+        scale = 2000 / w
+        img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # Denoise
     try:
-        import cv2
-    except ImportError:
-        cv2 = None  # not available in production
-        img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-        return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.fastNlMeansDenoising(gray, h=10)
+    except Exception:
+        pass
+    # CLAHE contrast enhancement
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    gray = clahe.apply(gray)
+    # Sharpen instead of threshold — preserves text better
+    kernel = __import__('numpy').array([[0,-1,0],[-1,5,-1],[0,-1,0]])
+    gray = cv2.filter2D(gray, -1, kernel)
+    return gray
 
 
 def _score_text(text):
@@ -97,9 +111,9 @@ def extract_text_from_id(image_file) -> str:
     except ImportError:
         cv2 = None  # not available in production
     try:
-        import numpy
+        import numpy as np
     except ImportError:
-        numpy = None  # not available in production as np
+        np = None
     from PIL import Image as PILImage
 
     pytesseract = _load_ocr()
@@ -167,7 +181,17 @@ def extract_text_from_id(image_file) -> str:
     return best_text
 def extract_id_number(text: str) -> Optional[str]:
     cleaned = text.upper()
-    cleaned = re.sub(r"\bI(\d{6,7})\b", r"1\1", cleaned)
+
+    # Fix common OCR errors only in mostly-digit sequences
+    ocr_fixes = {"O": "0", "I": "1", "S": "5", "B": "8", "G": "6", "Z": "2", "Q": "0"}
+    def fix_ocr_digits(m):
+        s = m.group()
+        digit_ratio = sum(1 for ch in s if ch.isdigit()) / len(s)
+        if digit_ratio >= 0.5:
+            return "".join(ocr_fixes.get(ch, ch) for ch in s)
+        return s
+    cleaned = re.sub(r"[A-Z0-9]{7,9}", fix_ocr_digits, cleaned)
+    cleaned = re.sub(r"I(\d{6,7})", r"1", cleaned)
 
     patterns = [
         r"(?:ID\s*NAMBA)[\s:\-\.]*(?P<n>\d{7,8})",
@@ -178,14 +202,15 @@ def extract_id_number(text: str) -> Optional[str]:
         r"(?:NO[\s:\-\.]+)(?P<n>\d{7,8})",
         r"(?:NUMBER[\s:\-\.]+)(?P<n>\d{7,8})",
         r"^\s*(?P<n>\d{7,8})\s*$",
-        r"\b(?P<n>\d{8})\b",
-        r"\b(?P<n>\d{7})\b",
+        r"(?P<n>\d{8})",
+        r"(?P<n>\d{7})",
+        r"(?P<n>\d[\d\s]{5,9}\d)",
     ]
 
     for pattern in patterns:
         match = re.search(pattern, cleaned, re.IGNORECASE | re.MULTILINE)
         if match:
-            candidate = match.group("n").strip()
+            candidate = re.sub(r"\s+", "", match.group("n").strip())
             if re.fullmatch(r"[1-9]\d{6,7}", candidate):
                 logger.info(f"[OCR] Extracted ID: {candidate}")
                 return candidate
@@ -409,6 +434,129 @@ def check_id_reuse(id_number: str, current_user=None) -> dict:
         return {"reused": False, "count": 0, "masked_emails": []}
 
 
+
+
+def extract_fields_with_ai(ocr_text: str, submitted_id: str = "", account_name: str = "") -> dict:
+    """
+    Use Claude AI to extract ID fields from garbled OCR text.
+    Much more robust than regex for poor quality scans.
+    """
+    try:
+        import requests
+        prompt = f"""You are analyzing OCR text extracted from a Kenyan National Identity Card.
+The OCR may be garbled, have missing characters, or contain noise.
+
+OCR TEXT:
+{ocr_text}
+
+The user claims:
+- ID Number: {submitted_id}
+- Full Name: {account_name}
+
+Extract the following fields from the OCR text. Use context clues and the user's claimed values to help interpret garbled text.
+Return ONLY a JSON object with these exact keys:
+{{
+  "id_number": "8-digit number or null",
+  "surname": "surname or null", 
+  "given_names": "given names or null",
+  "full_name": "full name or null",
+  "date_of_birth": "DD.MM.YYYY or null",
+  "gender": "MALE or FEMALE or null",
+  "place_of_birth": "place or null",
+  "confidence": "HIGH or MEDIUM or LOW"
+}}
+
+Rules:
+- ID number is 7-8 digits, never contains letters
+- If OCR shows spaced digits like "4129 2983", join them: "41292983"  
+- Fix obvious OCR errors: O->0, I->1 in number sequences
+- Return null for fields you cannot determine with reasonable confidence
+- Do not guess or hallucinate values not present in the OCR text"""
+
+        from django.conf import settings as _settings
+        api_key = getattr(_settings, "ANTHROPIC_API_KEY", "") or os.environ.get("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            logger.warning("[AI OCR] No API key")
+            return {}
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"Content-Type": "application/json", "x-api-key": api_key, "anthropic-version": "2023-06-01"},
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 500,
+                "messages": [{"role": "user", "content": prompt}]
+            },
+            timeout=15
+        )
+        
+        if response.status_code == 200:
+            import json, re
+            content = response.json()["content"][0]["text"]
+            # Extract JSON from response
+            json_match = re.search(r"\{.*\}", content, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group())
+                logger.info(f"[AI OCR] Extracted: {result}")
+                return result
+    except Exception as e:
+        logger.warning(f"[AI OCR] Failed: {e}")
+    
+    return {}
+
+
+def extract_fields_with_gemini(image_path: str, submitted_id: str = "", account_name: str = "") -> dict:
+    """Use Gemini Vision to extract ID fields directly from image."""
+    try:
+        import requests, base64, json, re
+        from django.conf import settings as _s
+        api_key = getattr(_s, "GEMINI_API_KEY", "")
+        if not api_key:
+            return {}
+
+        with open(image_path, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode()
+
+        prompt = f"""This is a Kenyan National Identity Card photo.
+Extract these fields and return ONLY valid JSON:
+{{
+  "id_number": "7 or 8 digit number only, no letters",
+  "full_name": "full name as shown",
+  "date_of_birth": "DD.MM.YYYY format",
+  "gender": "MALE or FEMALE",
+  "confidence": "HIGH or MEDIUM or LOW"
+}}
+
+User claims ID: {submitted_id}, Name: {account_name}
+If a field is unclear return null. Never guess."""
+
+        response = requests.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
+            headers={"Content-Type": "application/json"},
+            json={
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+                    ]
+                }]
+            },
+            timeout=20
+        )
+
+        if response.status_code == 200:
+            text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+            json_match = re.search(r"\{.*\}", text, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group())
+                logger.info(f"[Gemini OCR] {result}")
+                return result
+        else:
+            logger.warning(f"[Gemini OCR] {response.status_code}: {response.text[:100]}")
+    except Exception as e:
+        logger.warning(f"[Gemini OCR] Failed: {e}")
+    return {}
+
+
 def verify_id_document(
     image_file,
     submitted_id_number: str,
@@ -436,6 +584,30 @@ def verify_id_document(
     result.extracted_name   = extract_name(ocr_text)
     result.extracted_dob    = extract_dob(ocr_text)
     result.extracted_gender = extract_gender(ocr_text)
+
+    # If regex failed, try Gemini Vision fallback
+    if not result.extracted_id or not result.extracted_name:
+        logger.info("[OCR] Regex incomplete — trying Gemini Vision")
+        try:
+            from django.conf import settings as _s
+            id_disk_path = os.path.join(__import__('django.conf', fromlist=['settings']).settings.MEDIA_ROOT, str(image_file) if not hasattr(image_file, 'read') else '')
+        except Exception:
+            id_disk_path = ""
+        ai_result = extract_fields_with_gemini(id_disk_path, submitted_id_number, account_full_name) if id_disk_path and os.path.exists(id_disk_path) else {}
+        if ai_result:
+            if not result.extracted_id and ai_result.get("id_number"):
+                result.extracted_id = ai_result["id_number"]
+                logger.info(f"[AI OCR] ID: {result.extracted_id}")
+            if not result.extracted_name:
+                result.extracted_name = (
+                    ai_result.get("full_name") or
+                    " ".join(filter(None, [ai_result.get("surname"), ai_result.get("given_names")]))
+                ) or None
+                logger.info(f"[AI OCR] Name: {result.extracted_name}")
+            if not result.extracted_dob and ai_result.get("date_of_birth"):
+                result.extracted_dob = ai_result["date_of_birth"]
+            if not result.extracted_gender and ai_result.get("gender"):
+                result.extracted_gender = ai_result["gender"]
 
     if result.extracted_id:
         submitted_clean        = re.sub(r"\D", "", submitted_id_number.strip())
