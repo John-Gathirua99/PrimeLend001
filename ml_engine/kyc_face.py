@@ -10,15 +10,10 @@ import os
 import tempfile
 from dataclasses import dataclass
 from typing import Optional
+import cv2
 
-try:
-    import cv2
-except ImportError:
-    cv2 = None  # not available in production
-try:
-    import numpy
-except ImportError:
-    numpy = None  # not available in production as np
+import numpy as np
+from PIL import Image, ImageOps
 
 logger = logging.getLogger(__name__)
 
@@ -50,20 +45,38 @@ def _decode_base64_image(b64_string: str) -> Optional[np.ndarray]:
 
 def _load_image_from_file(image_file) -> Optional[np.ndarray]:
     try:
+        from django.conf import settings
+        img_path = None
+        
         if isinstance(image_file, str):
-            return cv2.imread(image_file)
-        if hasattr(image_file, 'path'):
-            return cv2.imread(image_file.path)
+            img_path = image_file
+        elif hasattr(image_file, 'path'):
+            img_path = image_file.path
+        else:
+            img_path = str(image_file)
+
+        # Ensure we have an absolute path targeting MEDIA_ROOT
+        if not os.path.isabs(img_path):
+            img_path = os.path.join(settings.MEDIA_ROOT, img_path)
+
+        logger.info(f"[KYC] Loading ID from: {img_path}")
+
+        # Use PIL to read and fix EXIF orientation
+        if os.path.exists(img_path):
+            with Image.open(img_path) as pil_img:
+                pil_img = ImageOps.exif_transpose(pil_img)
+                return cv2.cvtColor(np.array(pil_img.convert('RGB')), cv2.COLOR_RGB2BGR)
+        
+        # Fallback for file-like objects (e.g. uploaded memory files)
         if hasattr(image_file, 'read'):
             image_file.seek(0)
-            img_bytes = np.frombuffer(image_file.read(), dtype=np.uint8)
-            image_file.seek(0)
-            return cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
-        from django.conf import settings
-        full_path = os.path.join(settings.MEDIA_ROOT, str(image_file))
-        return cv2.imread(full_path)
+            with Image.open(image_file) as pil_img:
+                pil_img = ImageOps.exif_transpose(pil_img)
+                return cv2.cvtColor(np.array(pil_img.convert('RGB')), cv2.COLOR_RGB2BGR)
+                
+        return None
     except Exception as e:
-        logger.error(f"Image load failed: {e}")
+        logger.error(f"Image load (EXIF-aware) failed: {e}")
         return None
 
 
@@ -107,13 +120,15 @@ def _detect_face_opencv(img: np.ndarray) -> bool:
         gray  = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         faces = cascade.detectMultiScale(gray, 1.05, 3, minSize=(20, 20))
         if len(faces) > 0:
-            return True
+            return faces[0]
         # Try with histogram equalization
         eq    = cv2.equalizeHist(gray)
         faces = cascade.detectMultiScale(eq, 1.05, 2, minSize=(15, 15))
-        return len(faces) > 0
+        if len(faces) > 0:
+            return faces[0]
+        return None
     except Exception:
-        return False
+        return None
 
 
 def _save_temp(img: np.ndarray, suffix=".jpg") -> str:
@@ -124,25 +139,42 @@ def _save_temp(img: np.ndarray, suffix=".jpg") -> str:
 
 def _best_id_crop(id_img: np.ndarray) -> tuple:
     """
-    Try all crop regions, pick the one where OpenCV detects a face.
-    Falls back to left crop if none detected.
+    Search for a face in the ID image.
+    1. Try categorical crops (Left/Right) - Kenyan IDs are standard.
+    2. Try whole image if ID is small.
+    3. Fallback: Default to Left Side crop if detection fails entirely.
     """
     crops = _get_id_crops(id_img)
+    
+    # 1. Try categorical crops first (more likely to succeed if ID fills frame)
     for label, crop in crops:
+        if label == "full": continue
         resized = _resize_to_max(crop, MAX_PROCESS_WIDTH, MAX_PROCESS_HEIGHT)
-        if _detect_face_opencv(resized):
+        if _detect_face_opencv(resized) is not None:
             logger.info(f"[KYC] Face found in ID crop: {label}")
             return True, resized
-    # No face found by OpenCV — return left crop and let DeepFace try
-    logger.warning("[KYC] OpenCV found no face in ID — using left crop for DeepFace")
-    _, left_crop = crops[0]
+
+    # 2. Try WHOLE image
+    resized_full = _resize_to_max(id_img, MAX_PROCESS_WIDTH, MAX_PROCESS_HEIGHT)
+    face_coords = _detect_face_opencv(resized_full)
+    if face_coords is not None:
+        x, y, w, h = face_coords
+        pad_w, pad_h = int(w * 0.2), int(h * 0.2)
+        y1, y2 = max(0, y-pad_h), min(resized_full.shape[0], y+h+pad_h)
+        x1, x2 = max(0, x-pad_w), min(resized_full.shape[1], x+w+pad_w)
+        logger.info("[KYC] Face found in FULL image - cropping")
+        return True, resized_full[y1:y2, x1:x2]
+            
+    # 3. Fallback: Definitively use LEFT CROP if nothing else works
+    logger.warning("[KYC] Face detection failed — falling back to standard LEFT crop")
+    _, left_crop = crops[0] # "left_40"
     return False, _resize_to_max(left_crop, MAX_PROCESS_WIDTH, MAX_PROCESS_HEIGHT)
 
 
 def verify_face_kyc(
     selfie_b64: str,
     id_image_file,
-    threshold: float = 0.55,
+    threshold: float = 0.45,
 ) -> FaceMatchResult:
     """
     Compare selfie (base64) against face in ID document.
@@ -164,7 +196,7 @@ def verify_face_kyc(
 
         # Load images
         selfie_img = _decode_base64_image(selfie_b64)
-        id_img     = cv2.imread(id_disk_path)
+        id_img     = _load_image_from_file(id_image_file)
 
         if selfie_img is None:
             return FaceMatchResult(False, 0.0, 1.0,
@@ -178,13 +210,18 @@ def verify_face_kyc(
 
         # Resize selfie
         selfie_img = _resize_to_max(selfie_img, MAX_PROCESS_WIDTH, MAX_PROCESS_HEIGHT)
-        selfie_face_found = _detect_face_opencv(selfie_img)
+        selfie_face_coords = _detect_face_opencv(selfie_img)
+        selfie_face_found = selfie_face_coords is not None
 
         if not selfie_face_found:
-            logger.warning("[KYC] No face in selfie via OpenCV — letting DeepFace try anyway")
+            logger.warning("[KYC] No face detected in selfie — rejecting")
+            return FaceMatchResult(False, 0.0, 1.0,
+                "No face detected in your selfie. Please ensure good lighting, face the camera directly, and avoid sunglasses.",
+                False, False)
 
         # Get best ID crop
-        id_face_found, id_crop = _best_id_crop(id_img)
+        id_detected, id_crop = _best_id_crop(id_img)
+        id_face_found = id_detected
 
         # Save to temp files
         selfie_path = _save_temp(selfie_img)
@@ -240,8 +277,14 @@ def verify_face_kyc(
                 f"Face comparison failed: {last_error}",
                 selfie_face_found, id_face_found)
 
+        # Simplified verification logic: if distance is below threshold, it matches.
+        # We also boost the confidence calculation to be more intuitive.
         verified   = best_dist <= threshold
-        confidence = max(0.0, min(1.0, 1.0 - (best_dist / threshold)))
+        confidence = max(0.0, min(1.0, (1.0 - (best_dist / threshold)) * 1.6))
+        
+        # Ensure that if it is verified, it has a healthy minimum confidence
+        if verified:
+            confidence = max(confidence, 0.40)
 
         logger.info(f"[KYC] Final — dist={best_dist:.4f} match={verified} "
                     f"confidence={confidence:.1%}")
@@ -273,6 +316,8 @@ def verify_face_kyc(
                     os.unlink(path)
                 except Exception:
                     pass
+
+
 
 
 

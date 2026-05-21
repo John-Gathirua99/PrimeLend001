@@ -18,11 +18,11 @@
             <div class="content-card p-0">
                 
                 <!-- Header Section -->
-                <div class="p-4 p-md-5 border-bottom" style="background-color: #f8fafc;">
+                <div class="p-4 p-md-5" style="background: var(--panel-2); border-bottom: 1px solid var(--border);">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
                         <div>
-                            <span class="text-muted small text-uppercase fw-bold">Loan Application ID</span>
-                            <h2 class="h3 fw-bold mb-0" style="font-family: 'Playfair Display', serif; color: var(--primary-navy);">
+                            <span class="text-muted small text-uppercase fw-bold" style="color: var(--gold);">Loan Application ID</span>
+                            <h2 class="h3 fw-bold mb-0 text-white">
                                 #LN-{{ loan.id }}
                             </h2>
                         </div>
@@ -30,15 +30,15 @@
                         <!-- Status Badge -->
                         <div class="d-flex align-items-center gap-2">
                             {% if loan.status == "Approved" %}
-                                <span class="badge rounded-pill px-4 py-2 fs-6" style="background-color: #ecfdf5; color: #059669;">
+                                <span class="badge rounded-pill px-4 py-2 fs-6" style="background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,201,143,0.3);">
                                     <i class="bi bi-check-circle-fill me-1"></i> {{ loan.status }}
                                 </span>
                             {% elif loan.status == "Pending" %}
-                                <span class="badge rounded-pill px-4 py-2 fs-6" style="background-color: #fffbeb; color: #d97706;">
+                                <span class="badge rounded-pill px-4 py-2 fs-6" style="background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(232,160,32,0.3);">
                                     <i class="bi bi-clock-fill me-1"></i> {{ loan.status }}
                                 </span>
                             {% elif loan.status == "Rejected" %}
-                                <span class="badge rounded-pill px-4 py-2 fs-6" style="background-color: #fef2f2; color: #dc2626;">
+                                <span class="badge rounded-pill px-4 py-2 fs-6" style="background: rgba(240,80,96,0.1); color: var(--red); border: 1px solid rgba(240,80,96,0.2);">
                                     <i class="bi bi-x-circle-fill me-1"></i> {{ loan.status }}
                                 </span>
                             {% else %}
@@ -65,61 +65,61 @@
                     <div class="row g-5">
                         <!-- Column 1: Personal Information -->
                         <div class="col-md-6">
-                            <h5 class="text-muted small text-uppercase fw-bold mb-4 pb-2 border-bottom">
-                                <i class="bi bi-person me-2"></i>Applicant Details
+                            <h5 class="small text-uppercase fw-bold mb-4 pb-2" style="color: var(--text-2); border-bottom: 1px solid var(--border);">
+                                <i class="bi bi-person me-2 text-gold"></i>Applicant Details
                             </h5>
                             
                             <div class="d-flex justify-content-between mb-3">
                                 <span class="text-muted">Full Name</span>
-                                <span class="fw-bold text-dark">{{ loan.full_name }}</span>
+                                <span class="fw-bold text-white">{{ loan.full_name }}</span>
                             </div>
                             <div class="d-flex justify-content-between mb-3">
                                 <span class="text-muted">Age</span>
-                                <span class="fw-bold text-dark">{{ loan.age }}</span>
+                                <span class="fw-bold text-white">{{ loan.age }}</span>
                             </div>
                             <div class="d-flex justify-content-between mb-3">
                                 <span class="text-muted">Employment</span>
-                                <span class="fw-bold text-dark">{{ loan.employment_status }}</span>
+                                <span class="fw-bold text-white">{{ loan.employment_status }}</span>
                             </div>
                             <div class="d-flex justify-content-between mb-3">
                                 <span class="text-muted">Monthly Income</span>
-                                <span class="fw-bold text-dark">${{ loan.monthly_income|floatformat:2 }}</span>
+                                <span class="fw-bold text-white">${{ loan.monthly_income|floatformat:2 }}</span>
                             </div>
                         </div>
 
                         <!-- Column 2: Loan Specifics -->
                         <div class="col-md-6">
-                            <h5 class="text-muted small text-uppercase fw-bold mb-4 pb-2 border-bottom">
-                                <i class="bi bi-cash-stack me-2"></i>Loan Information
+                            <h5 class="small text-uppercase fw-bold mb-4 pb-2" style="color: var(--text-2); border-bottom: 1px solid var(--border);">
+                                <i class="bi bi-cash-stack me-2 text-gold"></i>Loan Information
                             </h5>
                             
                             <div class="d-flex justify-content-between mb-3">
                                 <span class="text-muted">Qualified Amount</span>
-                                <span class="fw-bold text-dark fs-5">${{ loan.qualified_amount }}</span>
+                                <span class="fw-bold text-gold fs-5">${{ loan.qualified_amount }}</span>
                             </div>
                             <div class="d-flex justify-content-between mb-3">
                                 <span class="text-muted">Repayment Period</span>
-                                <span class="fw-bold text-dark">{{ loan.repayment_period }} Months</span>
+                                <span class="fw-bold text-white">{{ loan.repayment_period }} Months</span>
                             </div>
                             <div class="d-flex justify-content-between mb-3">
                                 <span class="text-muted">Credit History</span>
-                                <span class="fw-bold text-dark">{{ loan.credit_history }}</span>
+                                <span class="fw-bold text-white">{{ loan.credit_history }}</span>
                             </div>
                             <div class="d-flex justify-content-between mb-3">
                                 <span class="text-muted">Date Applied</span>
-                                <span class="fw-bold text-dark">{{ loan.created_at|date:"M d, Y" }}</span>
+                                <span class="fw-bold text-white">{{ loan.created_at|date:"M d, Y" }}</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- AI Security Check Section -->
-                    <div class="mt-5 pt-4 border-top">
-                        <h5 class="text-muted small text-uppercase fw-bold mb-4">
-                            <i class="bi bi-shield-lock me-2"></i>Security & AI Analysis
+                    <div class="mt-5 pt-4" style="border-top: 1px solid var(--border);">
+                        <h5 class="small text-uppercase fw-bold mb-4" style="color: var(--text-2);">
+                            <i class="bi bi-shield-lock me-2 text-gold"></i>Security & AI Analysis
                         </h5>
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="card border-0 bg-light p-3">
+                                <div class="card p-3" style="background: var(--panel-2); border: 1px solid var(--border);">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <span class="text-muted small">Fraud Check</span>
                                         {% if loan.fraud_flag %}
@@ -131,7 +131,7 @@
                                 </div>
                             </div>
                             <div class="col-md-6 mt-3 mt-md-0">
-                                <div class="card border-0 bg-light p-3">
+                                <div class="card p-3" style="background: var(--panel-2); border: 1px solid var(--border);">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <span class="text-muted small">Risk Assessment</span>
                                         <span class="badge bg-primary">Low Risk</span>

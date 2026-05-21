@@ -48,7 +48,30 @@ path('admin/kyc-board/', kyc_comparison_board, name='kyc_comparison_board'),
     path('admin/loan/<int:loan_id>/delete/', admin_delete_loan, name='admin_delete_loan'),
 
 path('kyc/redo/', kyc_redo, name='kyc_redo'),
-path('credit-history/', views.credit_score_history, name='credit_score_history')
+path('credit-history/', views.credit_score_history, name='credit_score_history'),
+    path('how-to-apply/', views.loan_tutorial, name='loan_tutorial'),
+    # ── BULK ACTIONS ──
+    path('admin/bulk-action/', admin_views.admin_bulk_action, name='admin_bulk_action'),
+    path('admin/export-loans/', admin_views.admin_export_loans, name='admin_export_loans'),
+
+    # ── USER MANAGEMENT ──
+    path('admin/users/', admin_views.admin_user_list, name='admin_user_list'),
+    path('admin/users/<int:user_id>/', admin_views.admin_user_detail, name='admin_user_detail'),
+    path('admin/users/<int:user_id>/suspend/', admin_views.admin_suspend_user, name='admin_suspend_user'),
+    path('admin/users/<int:user_id>/reset-kyc/', admin_views.admin_reset_kyc, name='admin_reset_kyc'),
+    path('admin/users/<int:user_id>/set-tier/', admin_views.admin_set_tier, name='admin_set_tier'),
+
+    # ── LOAN MANAGEMENT ──
+    path('admin/loan/<int:loan_id>/extend/', admin_views.admin_extend_loan, name='admin_extend_loan'),
+    path('admin/loan/<int:loan_id>/default/', admin_views.admin_mark_default, name='admin_mark_default'),
+    path('admin/loan/<int:loan_id>/writeoff/', admin_views.admin_write_off, name='admin_write_off'),
+    path('admin/loan/<int:loan_id>/reminder/', admin_views.admin_send_reminder, name='admin_send_reminder'),
+    path('admin/loan/<int:loan_id>/note/', admin_views.admin_add_note, name='admin_add_note'),
+    path('admin/loan/<int:loan_id>/flag/', admin_views.admin_flag_loan, name='admin_flag_loan'),
+
+    # ── SYSTEM CONTROLS ──
+    path('admin/system-settings/', admin_views.admin_system_settings, name='admin_system_settings'),
+
 
 ]
 

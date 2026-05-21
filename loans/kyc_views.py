@@ -118,6 +118,32 @@ def kyc_verify_ajax(request):
                 'warning': True,
             })
 
+        # ── Step 0: Save compressed selfie to loan record for audit review ──────
+        if loan and selfie_b64:
+            try:
+                try:
+                    from loans.image_utils import compress_selfie
+                except ImportError:
+                    import base64, io
+                    from django.core.files.base import ContentFile
+                    def compress_selfie(b64, filename="selfie.jpg"):
+                        try:
+                            from PIL import Image
+                            img_data = base64.b64decode(b64.split(",")[-1])
+                            img = Image.open(io.BytesIO(img_data)).convert("RGB")
+                            img.thumbnail((600, 600))
+                            buf = io.BytesIO()
+                            img.save(buf, format="JPEG", quality=88)
+                            return ContentFile(buf.getvalue(), name=filename)
+                        except Exception:
+                            return None
+                selfie_file = compress_selfie(selfie_b64, filename=f"kyc_selfie_{loan.id}.jpg")
+                if selfie_file:
+                    loan.kyc_selfie = selfie_file
+                    loan.save(update_fields=['kyc_selfie'])
+            except Exception as e:
+                logger.error(f"Could not save KYC audit selfie: {e}")
+
         # ── Step 1: Check face uniqueness across all accounts ──────
         from ml_engine.face_registry import check_face_uniqueness, save_face_embedding
         uniqueness = check_face_uniqueness(selfie_b64, request.user)
@@ -148,44 +174,36 @@ def kyc_verify_ajax(request):
             except Exception as email_err:
                 logger.warning(f"KYC email failed: {email_err}")
 
-        # Store in session for loan application to pick up
-        request.session['kyc_face_verified'] = result.match
-        request.session['kyc_confidence']    = result.confidence
+        # Update loan record with final verification results
+        if loan:
+            loan.kyc_face_verified = result.match
+            loan.kyc_confidence    = round(result.confidence * 100, 1)
+            loan.save(update_fields=['kyc_face_verified', 'kyc_confidence'])
 
-        # Save compressed selfie to loan record for admin review
-        if loan and selfie_b64:
-            try:
-                try:
-                    from loans.image_utils import compress_selfie
-                except ImportError:
-                    # Inline fallback if image_utils not yet deployed
-                    import base64, io
-                    from django.core.files.base import ContentFile
-                    def compress_selfie(b64, filename="selfie.jpg"):
-                        try:
-                            from PIL import Image
-                            img_data = base64.b64decode(b64.split(",")[-1])
-                            img = Image.open(io.BytesIO(img_data)).convert("RGB")
-                            img.thumbnail((600, 600))
-                            buf = io.BytesIO()
-                            img.save(buf, format="JPEG", quality=88)
-                            return ContentFile(buf.getvalue(), name=filename)
-                        except Exception:
-                            return None
-                selfie_file = compress_selfie(selfie_b64, filename=f"kyc_selfie_{loan.id}.jpg")
-                if selfie_file:
-                    loan.kyc_selfie        = selfie_file
-                    loan.kyc_face_verified = result.match
-                    loan.kyc_confidence    = round(result.confidence * 100, 1)
-                    loan.save(update_fields=['kyc_selfie', 'kyc_face_verified', 'kyc_confidence'])
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Could not save KYC selfie: {e}")
+        # Extract ID face crop for display
+        id_face_b64 = None
+        try:
+            import cv2, base64, numpy as np
+            from django.conf import settings as _s
+            id_disk_path = os.path.join(_s.MEDIA_ROOT, str(id_image).replace('/', os.sep).replace('\\', os.sep).lstrip(os.sep))
+            if os.path.exists(id_disk_path):
+                id_img = cv2.imread(id_disk_path)
+                if id_img is not None:
+                    h, w = id_img.shape[:2]
+                    if h > w:
+                        id_img = cv2.rotate(id_img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                        h, w = id_img.shape[:2]
+                    face_crop = id_img[0:h, 0:int(w*0.40)]
+                    _, buf = cv2.imencode('.jpg', face_crop, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                    id_face_b64 = 'data:image/jpeg;base64,' + base64.b64encode(buf).decode()
+        except Exception:
+            pass
 
         response = {
             'match':      result.match,
             'confidence': result.confidence,
             'distance':   result.distance,
+            'id_face_b64': id_face_b64,
         }
         if result.error:
             response['error'] = result.error
@@ -218,3 +236,15 @@ def kyc_redo(request):
     request.session.pop('kyc_selfie_b64', None)
     messages.info(request, "Face verification cleared — please verify again.")
     return redirect('kyc_verify')
+
+
+
+
+
+
+
+
+
+
+
+

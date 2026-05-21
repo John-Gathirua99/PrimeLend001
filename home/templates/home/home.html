@@ -20,14 +20,14 @@
         </span>
         
         <!-- Typing Effect Headline -->
-        <h1 id="typed-text" class="display-2 fw-bold mb-4" style="font-family: 'Playfair Display', serif; text-shadow: 0 4px 10px rgba(0,0,0,0.3);"></h1>
+        <h1 id="typed-text" class="display-2 fw-bold mb-4" style="text-shadow: 0 4px 20px rgba(0,0,0,0.6);"></h1>
         
         <p class="lead mb-5 col-md-8 mx-auto" style="font-size: 1.25rem; color: #cbd5e1;" data-aos="fade-up" data-aos-delay="300">
             Experience the future of lending. Low rates, instant approvals, and a process so simple you'll wonder why you ever did it the old way.
         </p>
         
         <div class="d-flex justify-content-center gap-3 flex-wrap" data-aos="fade-up" data-aos-delay="500">
-            <a href="{% url 'loan_apply' %}" class="btn btn-lg fw-bold shadow-lg hover-lift btn-glow" style="background-color: #d97706; color: #fff; border-radius: 50px; padding: 14px 40px;">
+            <a href="{% url 'loan_apply' %}" class="btn btn-primary btn-lg fw-bold shadow-lg hover-lift btn-glow" style="border-radius: 50px; padding: 14px 40px;">
                 Check Rates <i class="bi bi-arrow-right ms-2"></i>
             </a>
             <a href="#how-it-works" class="btn btn-lg btn-outline-light rounded-pill px-5 py-3 hover-lift">
@@ -43,17 +43,17 @@
 </section>
 
 <!-- FEATURES SECTION -->
-<section class="py-5 bg-light">
+<section class="py-5" style="background-color: var(--surface);">
     <div class="container py-5">
         <div class="text-center mb-5" data-aos="fade-up">
-            <h2 class="h1 fw-bold" style="font-family: 'Playfair Display', serif; color: #0f172a;">The Smarter Way To Borrow</h2>
-            <div class="divider mx-auto mt-3" style="width: 60px; height: 4px; background-color: #d97706; border-radius: 2px;"></div>
+            <h2 class="h1 fw-bold text-white">The Smarter Way To Borrow</h2>
+            <div class="divider mx-auto mt-3" style="width: 60px; height: 4px; background-color: var(--gold); border-radius: 2px;"></div>
         </div>
 
         <div class="row g-4">
             <!-- Feature 1 -->
             <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="100">
-                <div class="card h-100 border-0 shadow-sm hover-card">
+                <div class="content-card p-0 mb-0 h-100 hover-card">
                     <div class="card-body text-center p-4">
                         <div class="icon-box mx-auto mb-4 animate-float">
                             <i class="bi bi-lightning-charge-fill"></i>
@@ -107,30 +107,30 @@
 </section>
 
 <!-- AI ANALYSIS SECTION -->
-<section class="py-5 position-relative overflow-hidden" style="background-color: #0f172a;">
+<section class="py-5 position-relative overflow-hidden" style="background-color: var(--ink);">
     <!-- Animated Particles Background -->
     <div id="particles-js" class="position-absolute w-100 h-100 top-0 left-0"></div>
 
     <div class="container py-5 position-relative z-1">
         <div class="row align-items-center">
             <div class="col-lg-6 mb-5 mb-lg-0 text-white" data-aos="fade-right">
-                <h2 class="display-5 fw-bold mb-4" style="font-family: 'Playfair Display', serif;">
-                    Powered by <span style="color: #d97706;">Intelligence</span>
+                <h2 class="display-5 fw-bold mb-4">
+                    Powered by <span style="color: var(--gold);">Intelligence</span>
                 </h2>
                 <p class="lead mb-4 text-secondary">
                     We don't just check your credit score. Our advanced AI analyzes over 1,000 data points—including your earning potential and cash flow—to approve more loans at better rates.
                 </p>
                 <ul class="list-unstyled">
                     <li class="d-flex align-items-center mb-3 animate-check">
-                        <i class="bi bi-check-circle-fill me-3 fs-4" style="color: #d97706;"></i>
+                        <i class="bi bi-check-circle-fill me-3 fs-4 text-gold"></i>
                         <span>Real-time risk assessment</span>
                     </li>
                     <li class="d-flex align-items-center mb-3 animate-check">
-                        <i class="bi bi-check-circle-fill me-3 fs-4" style="color: #d97706;"></i>
+                        <i class="bi bi-check-circle-fill me-3 fs-4 text-gold"></i>
                         <span>No hidden fees or bias</span>
                     </li>
                     <li class="d-flex align-items-center animate-check">
-                        <i class="bi bi-check-circle-fill me-3 fs-4" style="color: #d97706;"></i>
+                        <i class="bi bi-check-circle-fill me-3 fs-4 text-gold"></i>
                         <span>Personalized repayment plans</span>
                     </li>
                 </ul>
@@ -138,21 +138,21 @@
             
             <div class="col-lg-6" data-aos="fade-left">
                 <!-- Fake "AI Dashboard" Visual with Pulse Animation -->
-                <div class="card border-0 shadow-lg animate-float" style="border-radius: 20px;">
-                    <div class="card-body p-4 bg-white">
+                <div class="content-card p-0 shadow-lg animate-float">
+                    <div class="card-body p-4 bg-panel-2">
                         <div class="d-flex justify-content-between mb-3">
                             <span class="fw-bold text-muted small">ANALYSIS STATUS</span>
                             <span class="badge bg-success rounded-pill px-3 py-2 animate-pulse">Live</span>
                         </div>
-                        <h3 class="fw-bold mb-3" style="color: #0f172a;">Approval Probability</h3>
-                        <div class="progress mb-4" style="height: 12px; border-radius: 10px; background-color: #e2e8f0;">
+                        <h3 class="fw-bold mb-3 text-white">Approval Probability</h3>
+                        <div class="progress mb-4" style="height: 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border);">
                             <div class="progress-bar bg-success progress-bar-animated progress-bar-striped" role="progressbar" style="width: 94%;" aria-valuenow="94" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
                         <div class="d-flex justify-content-between text-muted small mb-5">
-                            <span>Risk Score: <strong class="text-dark">Low</strong></span>
-                            <span>Rate: <strong class="text-dark">5.25%</strong></span>
+                            <span>Risk Score: <strong class="text-white">Low</strong></span>
+                            <span>Rate: <strong class="text-white">5.25%</strong></span>
                         </div>
-                        <button class="btn w-100 fw-bold py-3" style="background-color: #0f172a; color: #fff; border-radius: 12px;">
+                        <button class="btn btn-primary w-100 fw-bold py-3" style="border-radius: 12px;">
                             Start My Application
                         </button>
                     </div>
@@ -167,19 +167,19 @@
     <div class="container py-5">
         <div class="row text-center g-5">
             <div class="col-6 col-md-3" data-aos="zoom-in">
-                <h2 class="display-4 fw-bold counter" data-target="2000000000" style="color: #0f172a;">$0</h2>
+                <h2 class="display-4 fw-bold counter text-white" data-target="2000000000">$0</h2>
                 <p class="text-muted text-uppercase small tracking-wider">Loans Funded</p>
             </div>
             <div class="col-6 col-md-3" data-aos="zoom-in" data-aos-delay="100">
-                <h2 class="display-4 fw-bold counter" data-target="12000" style="color: #0f172a;">0</h2>
+                <h2 class="display-4 fw-bold counter text-white" data-target="12000">0</h2>
                 <p class="text-muted text-uppercase small tracking-wider">Happy Clients</p>
             </div>
             <div class="col-6 col-md-3" data-aos="zoom-in" data-aos-delay="200">
-                <h2 class="display-4 fw-bold counter" data-target="95" style="color: #0f172a;">0%</h2>
+                <h2 class="display-4 fw-bold counter text-white" data-target="95">0%</h2>
                 <p class="text-muted text-uppercase small tracking-wider">Satisfaction Rate</p>
             </div>
             <div class="col-6 col-md-3" data-aos="zoom-in" data-aos-delay="300">
-                <h2 class="display-4 fw-bold" style="color: #0f172a;"><span class="counter" data-target="2">0</span> Min</h2>
+                <h2 class="display-4 fw-bold text-white"><span class="counter" data-target="2">0</span> Min</h2>
                 <p class="text-muted text-uppercase small tracking-wider">Avg Approval</p>
             </div>
         </div>
@@ -195,7 +195,8 @@
     }
     .hover-card:hover {
         transform: translateY(-8px);
-        box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important;
+        box-shadow: 0 12px 30px rgba(232,160,32,0.12) !important;
+        border-color: rgba(232,160,32,0.4) !important;
     }
 
     .hover-lift {
@@ -209,13 +210,15 @@
     .icon-box {
         width: 70px;
         height: 70px;
-        background-color: #fffbeb;
-        border-radius: 50%;
+        background: var(--panel-2);
+        border: 1px solid var(--border-2);
+        border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 2rem;
-        color: #d97706;
+        color: var(--gold);
+        box-shadow: inset 0 2px 10px rgba(232,160,32,0.1);
     }
 
     /* Floating Animation */
@@ -250,8 +253,8 @@
         animation: glow 2s infinite;
     }
     @keyframes glow {
-        0% { box-shadow: 0 0 5px #d97706, 0 0 10px #d97706; }
-        50% { box-shadow: 0 0 20px #d97706, 0 0 30px #d97706; }
+        0% { box-shadow: 0 0 5px var(--gold), 0 0 10px rgba(232,160,32,0.5); }
+        50% { box-shadow: 0 0 20px rgba(232,160,32,0.8), 0 0 30px rgba(232,160,32,0.4); }
         100% { box-shadow: 0 0 5px #d97706, 0 0 10px #d97706; }
     }
     
@@ -289,7 +292,7 @@
             setTimeout(typeWriter, 80);
         } else {
             // Add the Gold span after typing finishes
-            typeContainer.innerHTML = textToType.replace("Dream Home", "<span style='color:#d97706;'>Dream Home</span>");
+            typeContainer.innerHTML = textToType.replace("Dream Home", "<span class='text-gold'>Dream Home</span>");
         }
     }
     // Start typing after a short delay
@@ -352,4 +355,9 @@
 </script>
 
 {% endblock %}
+
+
+
+
+
 

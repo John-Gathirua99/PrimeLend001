@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}System Settings — PrimeLend Admin{% endblock %}
+{% block extra_css %}
+<style>
+:root{--ink:#080c14;--panel:#111827;--panel-2:#161f30;--border:rgba(255,255,255,0.07);--gold:#e8a020;--green:#10c98f;--red:#f05060;--blue:#4a90e2;--text:#e2e8f2;--text-2:#94a3b8;--text-3:#4a5568;}
+.adm{background:var(--ink);min-height:100vh;margin:-40px -12px -40px;padding:2rem;font-family:'DM Sans',sans-serif;color:var(--text);}
+.adm-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:#fff;letter-spacing:-0.03em;margin-bottom:0.25rem;}
+.adm-title span{color:var(--gold);}
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.5rem;}
+@media(max-width:640px){.settings-grid{grid-template-columns:1fr;}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:1.5rem;}
+.card-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-3);margin-bottom:1.25rem;padding-bottom:0.75rem;border-bottom:1px solid var(--border);}
+.field{margin-bottom:1rem;}
+.field-label{font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2);margin-bottom:0.4rem;display:block;}
+.field-input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.9rem;color:var(--text);font-size:0.88rem;outline:none;font-family:'DM Sans',sans-serif;}
+.field-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,160,32,0.1);}
+.toggle-wrap{display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid var(--border);}
+.toggle-label{font-size:0.85rem;color:var(--text);}
+.toggle-sub{font-size:0.72rem;color:var(--text-3);margin-top:2px;}
+.toggle{position:relative;width:44px;height:24px;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--panel-2);border:1px solid var(--border);border-radius:99px;transition:0.3s;}
+.toggle-slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;bottom:3px;background:var(--text-3);border-radius:50%;transition:0.3s;}
+input:checked + .toggle-slider{background:var(--gold);border-color:var(--gold);}
+input:checked + .toggle-slider::before{transform:translateX(20px);background:#000;}
+.submit-btn{background:var(--gold);color:#000;border:none;border-radius:10px;padding:0.7rem 2rem;font-weight:700;font-size:0.88rem;cursor:pointer;transition:all 0.2s;margin-top:1rem;}
+.submit-btn:hover{background:#f0c040;transform:translateY(-1px);}
+.tier-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;}
+.warning-banner{background:rgba(240,80,96,0.08);border:1px solid rgba(240,80,96,0.2);border-radius:12px;padding:0.85rem 1rem;margin-bottom:1.5rem;font-size:0.83rem;color:#fca5a5;display:flex;gap:0.6rem;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="adm">
+  <a href="{% url 'admin_loan_dashboard' %}" style="color:var(--text-3);font-size:0.8rem;text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;margin-bottom:1.5rem;">← Back to Dashboard</a>
+  <div class="adm-title">System <span>Settings</span></div>
+  <div style="font-size:0.78rem;color:var(--text-3);">Configure loan limits, rates, and system behaviour</div>
+
+  <div class="warning-banner">
+    <span>⚠</span>
+    <span>Changes take effect immediately. Be careful when modifying loan limits and interest rates as they affect all new applications.</span>
+  </div>
+
+  <form method="POST">
+    {% csrf_token %}
+    <div class="settings-grid">
+
+      <!-- Loan Switch -->
+      <div class="card">
+        <div class="card-title">System Status</div>
+        <div class="toggle-wrap">
+          <div>
+            <div class="toggle-label">Loan Applications</div>
+            <div class="toggle-sub">Turn off to pause all new applications</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" name="loans_enabled" {% if settings.loans_enabled %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="field" style="margin-top:1rem;">
+          <label class="field-label">Maintenance Message</label>
+          <textarea class="field-input" name="maintenance_message" rows="3" style="resize:vertical;" placeholder="Shown to users when loans are disabled…">{{ settings.maintenance_message }}</textarea>
+        </div>
+      </div>
+
+      <!-- Interest Rates -->
+      <div class="card">
+        <div class="card-title">Interest Rate Bounds (%)</div>
+        <div class="field">
+          <label class="field-label">Minimum Rate (%)</label>
+          <input type="number" class="field-input" name="min_interest_rate" value="{{ settings.min_interest_rate }}" step="0.5" min="1" max="100">
+        </div>
+        <div class="field">
+          <label class="field-label">Maximum Rate (%)</label>
+          <input type="number" class="field-input" name="max_interest_rate" value="{{ settings.max_interest_rate }}" step="0.5" min="1" max="100">
+        </div>
+        <div class="field">
+          <label class="field-label">Minimum Loan Amount (KES)</label>
+          <input type="number" class="field-input" name="min_loan_amount" value="{{ settings.min_loan_amount }}" step="500">
+        </div>
+      </div>
+
+      <!-- Tier Limits -->
+      <div class="card" style="grid-column:1/-1;">
+        <div class="card-title">Maximum Loan Limits by Trust Tier (KES)</div>
+        <div class="tier-grid">
+          <div class="field">
+            <label class="field-label">🆕 NEW</label>
+            <input type="number" class="field-input" name="max_loan_amount_new" value="{{ settings.max_loan_amount_new }}" step="1000">
+          </div>
+          <div class="field">
+            <label class="field-label">🥉 BRONZE</label>
+            <input type="number" class="field-input" name="max_loan_amount_bronze" value="{{ settings.max_loan_amount_bronze }}" step="1000">
+          </div>
+          <div class="field">
+            <label class="field-label">🥈 SILVER</label>
+            <input type="number" class="field-input" name="max_loan_amount_silver" value="{{ settings.max_loan_amount_silver }}" step="1000">
+          </div>
+          <div class="field">
+            <label class="field-label">🥇 GOLD</label>
+            <input type="number" class="field-input" name="max_loan_amount_gold" value="{{ settings.max_loan_amount_gold }}" step="5000">
+          </div>
+          <div class="field">
+            <label class="field-label">💎 PLATINUM</label>
+            <input type="number" class="field-input" name="max_loan_amount_platinum" value="{{ settings.max_loan_amount_platinum }}" step="10000">
+          </div>
+        </div>
+        <button type="submit" class="submit-btn">💾 Save All Settings</button>
+      </div>
+
+    </div>
+  </form>
+</div>
+{% endblock %}

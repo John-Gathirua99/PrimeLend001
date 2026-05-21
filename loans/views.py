@@ -72,109 +72,6 @@ from dateutil.relativedelta import relativedelta
 logger = logging.getLogger(__name__)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  TRUST ENGINE  (paste into new file: loans/trust_engine.py)
-# ─────────────────────────────────────────────────────────────────────────────
-TRUST_ENGINE_CODE = '''
-"""
-loans/trust_engine.py
-Computes a trust tier for each user based on repayment behaviour.
-
-Tiers:
-    NEW       — no completed loans
-    BRONZE    — 1 loan repaid on time
-    SILVER    — 2–3 loans repaid on time, no defaults
-    GOLD      — 4+ loans repaid, avg days-early > 0
-    PLATINUM  — 6+ loans, all on time, consistent borrower
-
-Each tier gets a loan limit multiplier and an interest rate discount.
-"""
-from decimal import Decimal
-from django.utils import timezone
-from datetime import timedelta
-
-
-TIER_CONFIG = {
-    "NEW":      {"multiplier": 1.0,  "rate_discount": Decimal("0.00"), "label": "New Member",    "color": "#64748b"},
-    "BRONZE":   {"multiplier": 1.3,  "rate_discount": Decimal("0.02"), "label": "Bronze",        "color": "#b45309"},
-    "SILVER":   {"multiplier": 1.6,  "rate_discount": Decimal("0.03"), "label": "Silver",        "color": "#475569"},
-    "GOLD":     {"multiplier": 2.0,  "rate_discount": Decimal("0.05"), "label": "Gold",          "color": "#d97706"},
-    "PLATINUM": {"multiplier": 3.0,  "rate_discount": Decimal("0.07"), "label": "Platinum",      "color": "#7c3aed"},
-}
-
-
-def get_trust_profile(user):
-    """
-    Returns dict with all trust data for a user.
-    """
-    from loans.models import LoanApplication
-
-    loans = LoanApplication.objects.filter(user=user)
-    repaid_loans  = loans.filter(fully_repaid=True)
-    active_loans  = loans.filter(status__in=["Funded", "Approved"])
-    defaulted     = loans.filter(
-        fully_repaid=False,
-        amount_remaining__gt=0,
-        status="Funded",
-        funded_at__lt=timezone.now() - timedelta(days=60),
-    )
-
-    total_repaid    = repaid_loans.count()
-    total_borrowed  = sum(float(l.qualified_amount) for l in repaid_loans)
-    total_defaulted = defaulted.count()
-
-    # Average repayment speed (days before due — positive = early)
-    early_days_list = []
-    for loan in repaid_loans:
-        if loan.funded_at and loan.fully_repaid_at:
-            expected_end = loan.funded_at + timedelta(days=30 * loan.repayment_period)
-            days_early = (expected_end.date() - loan.fully_repaid_at.date()).days
-            early_days_list.append(days_early)
-    avg_days_early = sum(early_days_list) / len(early_days_list) if early_days_list else 0
-
-    tier = compute_trust_tier(
-        total_repaid=total_repaid,
-        total_defaulted=total_defaulted,
-        avg_days_early=avg_days_early,
-    )
-
-    config = TIER_CONFIG[tier]
-    return {
-        "tier":           tier,
-        "label":          config["label"],
-        "color":          config["color"],
-        "multiplier":     config["multiplier"],
-        "rate_discount":  config["rate_discount"],
-        "total_repaid":   total_repaid,
-        "total_borrowed": total_borrowed,
-        "total_defaulted": total_defaulted,
-        "avg_days_early": round(avg_days_early, 1),
-        "is_returning":   total_repaid >= 1,
-        "is_trusted":     tier in ("GOLD", "PLATINUM"),
-    }
-
-
-def compute_trust_tier(total_repaid, total_defaulted, avg_days_early):
-    if total_defaulted > 0:
-        return "NEW"
-    if total_repaid == 0:
-        return "NEW"
-    if total_repaid == 1:
-        return "BRONZE"
-    if total_repaid <= 3:
-        return "SILVER"
-    if total_repaid >= 6 and avg_days_early >= 0:
-        return "PLATINUM"
-    if total_repaid >= 4:
-        return "GOLD"
-    return "SILVER"
-
-
-def apply_trust_boost(base_limit, trust_profile):
-    """Apply tier multiplier to base loan limit."""
-    boosted = float(base_limit) * trust_profile["multiplier"]
-    return min(boosted, 500_000)   # hard cap KES 500k even for platinum
-'''
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -220,6 +117,16 @@ def kyc_required(view_func):
 
 @login_required
 def apply_loan(request):
+    # ── System settings check ─────────────────────────────────
+    try:
+        from loans.models import SystemSettings
+        sys_settings = SystemSettings.objects.get_or_create(id=1)[0]
+        if not sys_settings.loans_enabled:
+            msg = sys_settings.maintenance_message or "Loan applications are temporarily unavailable. Please check back soon."
+            return render(request, "loans/loans_disabled.html", {"message": msg})
+    except Exception:
+        pass
+
     profile, _         = UserProfile.objects.get_or_create(user=request.user)
     security_profile, _ = UserSecurityProfile.objects.get_or_create(user=request.user)
 
@@ -524,7 +431,7 @@ def apply_loan(request):
         })
 
         predicted_probability = prediction["probability"]
-        credit_decision       = prediction["decision"]
+        credit_decision       = prediction.get("status", prediction.get("decision", "Under Review"))
 
         # Trust tier boosts probability for credit model
         tier_prob_bonus = {
@@ -611,6 +518,12 @@ def apply_loan(request):
             id_document_front=id_document_front,
             id_document_back=id_document_back,
             reason_for_loan=reason_for_loan,
+            
+            # Authenticity signals
+            id_authentic=id_authentic,
+            id_authenticity_score=getattr(id_verification.authenticity, 'confidence', None) if id_verification.authenticity else None,
+            mrz_valid=getattr(id_verification.authenticity, 'mrz_valid', None) if id_verification.authenticity else None,
+            ela_score=getattr(id_verification.authenticity, 'ela_score', None) if id_verification.authenticity else None,
         )
 
     except Exception as e:
@@ -642,11 +555,7 @@ def apply_loan(request):
 
 @login_required
 def finalize_loan(request, loan_id):
-    """
-    Called after KYC completes. Re-scores the loan with KYC result
-    and sets the final status (Approved / Review / Rejected).
-    Also triggered if user skips KYC.
-    """
+    
     loan = get_object_or_404(LoanApplication, id=loan_id, user=request.user)
 
     if loan.status not in ("Pending KYC",):
@@ -657,7 +566,7 @@ def finalize_loan(request, loan_id):
     kyc_verified   = request.session.get('kyc_face_verified', None)
     kyc_confidence = request.session.get('kyc_confidence', None)
 
-    # ── Re-run credit decision with KYC result ────────────────
+  
     from ml_engine.credit_predict import predict_credit
     from ml_engine.loan_calculator import calculate_loan_limit, determine_interest
 
@@ -689,8 +598,10 @@ def finalize_loan(request, loan_id):
     })
 
     probability    = prediction["probability"]
-    credit_decision = prediction["decision"]
-    explanations   = prediction["explanation"]
+
+      
+    credit_decision = prediction["status"]
+    explanations   = prediction["explanations"]
 
     # ── Recalculate loan limit using KYC result ───────────────
     new_limit = calculate_loan_limit(
@@ -1031,3 +942,7 @@ def credit_score_history(request):
         'chart_scores': chart_scores,
         'latest_score': score_data[0]['score'] if score_data else None,
     })
+
+
+def loan_tutorial(request):
+    return render(request, 'loans/loan_tutorial.html')

@@ -55,15 +55,31 @@ def admin_dashboard(request):
         "open_tickets":      open_tickets,
     }
 
+    # Add default risk predictions for funded loans
+    funded_with_risk = []
+    try:
+        from ml_engine.default_predict import predict_default_risk
+        for loan in funded.filter(fully_repaid=False)[:50]:
+            risk = predict_default_risk(loan)
+            funded_with_risk.append({
+                "loan": loan,
+                "default_risk": risk["risk_level"],
+                "default_prob": round(risk["probability"] * 100, 1),
+                "recommendation": risk["recommendation"],
+            })
+    except Exception:
+        funded_with_risk = [{"loan": l, "default_risk": "N/A", "default_prob": 0, "recommendation": ""} for l in funded.filter(fully_repaid=False)[:50]]
+
     return render(request, "loans/admin_dashboard.html", {
-        "pending":       pending,
-        "approved":      approved,
-        "funded":        funded,
-        "rejected":      rejected,
-        "all_loans":     all_loans[:100],
-        "stats":         stats,
-        "system_wallet": system_wallet,
-        "now":           timezone.now(),
+        "pending":          pending,
+        "approved":         approved,
+        "funded":           funded,
+        "funded_with_risk": funded_with_risk,
+        "rejected":         rejected,
+        "all_loans":        all_loans[:100],
+        "stats":            stats,
+        "system_wallet":    system_wallet,
+        "now":              timezone.now(),
     })
 
 
@@ -203,15 +219,10 @@ def admin_reject_loan(request, loan_id):
                 loan_id=loan_id, action="Rejected", note=reason[:200],
                 actor=request.user.get_full_name() or request.user.username
             )
-        except Exception: pass
-        try:
-            from loans.models import AuditLog
-            AuditLog.objects.create(
-                loan_id=loan_id, action="Rejected", note=reason[:200],
-                actor=request.user.get_full_name() or request.user.username
-            )
-        except Exception: pass
+        except Exception:
+            logger.warning(f"AuditLog write failed for loan #{loan_id}")
         messages.success(request, f"Loan #{loan_id} rejected.")
+
 
     next_url = request.POST.get("next", "")
     if next_url == "detail":
@@ -329,30 +340,21 @@ def loan_ocr_debug(request, loan_id):
             preprocessed.save(buf, format='JPEG', quality=92)
             debug['preprocessed_b64'] = 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()
 
-            # Crop face region from ID (left 42%)
-            try:
-                raw_bytes3 = open(id_path, 'rb').read()
-                nparr3 = np.frombuffer(raw_bytes3, np.uint8)
-                id_img3 = cv2.imdecode(nparr3, cv2.IMREAD_COLOR)
-                h3, w3 = id_img3.shape[:2]
-                # rotate if portrait
-                if h3 > w3:
-                    id_img3 = cv2.rotate(id_img3, cv2.ROTATE_90_COUNTERCLOCKWISE)
-                    h3, w3 = id_img3.shape[:2]
-                # Try both sides, pick the one with more face-like content
-                left_crop  = id_img3[0:h3, 0:int(w3*0.42)]
-                right_crop = id_img3[0:h3, int(w3*0.58):]
-                # Use right crop if left is mostly background (low variance)
-                face_crop = right_crop
+            # Use the new robust face extraction logic from kyc_face
+            from ml_engine.kyc_face import _load_image_from_file, _best_id_crop
+            import cv2
+            
+            id_img_cv = _load_image_from_file(loan.id_document_front)
+            if id_img_cv is not None:
+                found, face_crop = _best_id_crop(id_img_cv)
                 face_crop_rgb = cv2.cvtColor(face_crop, cv2.COLOR_BGR2RGB)
-                from PIL import Image as PILImage
-                import io
                 face_pil = PILImage.fromarray(face_crop_rgb)
                 face_buf = io.BytesIO()
                 face_pil.save(face_buf, format='JPEG')
                 debug['face_crop_b64'] = 'data:image/jpeg;base64,' + base64.b64encode(face_buf.getvalue()).decode()
-            except Exception as e:
+            else:
                 debug['face_crop_b64'] = None
+            
             debug['preprocessed_size'] = f"{len(buf.getvalue()) / 1024:.0f} KB  ({preprocessed.size[0]}×{preprocessed.size[1]})"
 
             # Re-run OCR
@@ -361,19 +363,9 @@ def loan_ocr_debug(request, loan_id):
             if _os.path.exists(TESS):
                 pytesseract.pytesseract.tesseract_cmd = TESS
 
-            texts = []
-            for config in ["--psm 6 --oem 3", "--psm 4 --oem 3", "--psm 11 --oem 3"]:
-                try:
-                    t = pytesseract.image_to_string(preprocessed, config=config, timeout=25)
-                    texts.append((config, t.strip()))
-                except Exception as e:
-                    texts.append((config, f"[ERROR: {e}]"))
-
-            best_text = max(texts, key=lambda x: len(x[1]))[1]
-            debug['ocr_text']     = best_text
-            debug['ocr_all_runs'] = texts
-
-            # Extract fields
+            # Use main extraction logic
+            best_text = extract_text_from_id(id_img_cv)
+            debug['ocr_text']         = best_text
             debug['extracted_id']     = extract_id_number(best_text)
             debug['extracted_name']   = extract_name(best_text)
             debug['extracted_dob']    = extract_dob(best_text)
@@ -692,4 +684,380 @@ def admin_analytics(request):
         "overdue_loans": overdue_loans,
         "audit_logs": audit_logs,
         "now": now,
+    })
+
+
+# ════════════════════════════════════════════════════════════
+# BULK ACTIONS
+# ════════════════════════════════════════════════════════════
+
+@login_required
+@is_admin
+def admin_bulk_action(request):
+    if request.method != "POST":
+        return redirect("admin_loan_dashboard")
+    from loans.models import LoanApplication
+    from notification.models import Notification
+    action = request.POST.get("action")
+    loan_ids = request.POST.getlist("loan_ids")
+    if not loan_ids:
+        messages.warning(request, "No loans selected.")
+        return redirect("admin_loan_dashboard")
+
+    loans = LoanApplication.objects.filter(id__in=loan_ids)
+    count = loans.count()
+
+    if action == "bulk_reject":
+        reason = request.POST.get("bulk_reason", "Bulk rejected by admin.")
+        for loan in loans:
+            loan.status = "Rejected"
+            loan.rejection_reason = reason
+            loan.save(update_fields=["status", "rejection_reason"])
+            try:
+                Notification.objects.create(
+                    user=loan.user,
+                    title="Loan Application Rejected",
+                    message=f"Your loan #{loan.id} has been rejected. Reason: {reason}",
+                    link=f"/loans/loan/result/{loan.id}/",
+                )
+            except Exception:
+                pass
+        messages.success(request, f"{count} loans rejected.")
+
+    elif action == "bulk_approve":
+        for loan in loans.filter(status__in=["Pending", "Under Review"]):
+            loan.status = "Approved"
+            loan.approved_at = timezone.now()
+            loan.approved_by = request.user
+            loan.save(update_fields=["status", "approved_at", "approved_by"])
+            try:
+                Notification.objects.create(
+                    user=loan.user,
+                    title="Loan Approved!",
+                    message=f"Your loan #{loan.id} of KES {loan.qualified_amount} has been approved!",
+                    link=f"/loans/loan/result/{loan.id}/",
+                )
+            except Exception:
+                pass
+        messages.success(request, f"{count} loans approved.")
+
+    elif action == "bulk_delete":
+        loans.delete()
+        messages.success(request, f"{count} loans deleted.")
+
+    elif action == "bulk_flag":
+        for loan in loans:
+            loan.is_flagged = True
+            loan.save(update_fields=["is_flagged"])
+        messages.success(request, f"{count} loans flagged for investigation.")
+
+    return redirect("admin_loan_dashboard")
+
+
+@login_required
+@is_admin
+def admin_export_loans(request):
+    import csv
+    from django.http import HttpResponse
+    from loans.models import LoanApplication
+    status_filter = request.GET.get("status", "all")
+    loans = LoanApplication.objects.select_related("user").order_by("-created_at")
+    if status_filter != "all":
+        loans = loans.filter(status=status_filter)
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="primelend_loans_{status_filter}.csv"'
+    writer = csv.writer(response)
+    writer.writerow([
+        "ID", "Name", "Email", "Phone", "ID Number", "Age", "Employment",
+        "Monthly Income", "Loan Amount", "Interest Rate", "Repayment Period",
+        "Status", "Fraud Score", "Credit Score", "KYC Verified",
+        "Applied Date", "Approved Date", "Funded Date", "Fully Repaid"
+    ])
+    for loan in loans:
+        try:
+            phone = loan.user.profile.phone_number or ""
+        except Exception:
+            phone = ""
+        writer.writerow([
+            loan.id, loan.full_name, loan.user.email, phone,
+            loan.id_number or "", loan.age, loan.employment_status,
+            loan.monthly_income, loan.qualified_amount,
+            round(float(loan.interest_rate or 0) * 100, 1),
+            loan.repayment_period, loan.status,
+            round(float(loan.fraud_score or 0) * 100, 1),
+            round(float(loan.predicted_probability or 0) * 100, 1),
+            loan.kyc_face_verified,
+            loan.created_at.strftime("%Y-%m-%d %H:%M") if loan.created_at else "",
+            loan.approved_at.strftime("%Y-%m-%d") if loan.approved_at else "",
+            loan.funded_at.strftime("%Y-%m-%d") if loan.funded_at else "",
+            loan.fully_repaid,
+        ])
+    return response
+
+
+# ════════════════════════════════════════════════════════════
+# USER MANAGEMENT
+# ════════════════════════════════════════════════════════════
+
+@login_required
+@is_admin
+def admin_user_list(request):
+    from django.contrib.auth.models import User
+    from loans.models import LoanApplication
+    search = request.GET.get("q", "")
+    users = User.objects.select_related("profile").order_by("-date_joined")
+    if search:
+        users = users.filter(
+            email__icontains=search
+        ) | users.filter(
+            first_name__icontains=search
+        ) | users.filter(
+            last_name__icontains=search
+        )
+    user_data = []
+    for user in users[:100]:
+        loans = LoanApplication.objects.filter(user=user)
+        user_data.append({
+            "user": user,
+            "loan_count": loans.count(),
+            "active_loans": loans.filter(status="Funded", fully_repaid=False).count(),
+            "total_borrowed": loans.filter(status="Funded").aggregate(
+                t=Sum("qualified_amount"))["t"] or 0,
+            "is_suspended": not user.is_active,
+            "trust_tier": getattr(getattr(user, "profile", None), "trust_tier", "NEW"),
+            "kyc_verified": loans.filter(kyc_face_verified=True).exists(),
+        })
+    return render(request, "loans/admin_user_list.html", {
+        "user_data": user_data, "search": search,
+        "total": users.count(),
+    })
+
+
+@login_required
+@is_admin
+def admin_user_detail(request, user_id):
+    from django.contrib.auth.models import User
+    from loans.models import LoanApplication
+    target_user = get_object_or_404(User, id=user_id)
+    loans = LoanApplication.objects.filter(user=target_user).order_by("-created_at")
+    return render(request, "loans/admin_user_detail.html", {
+        "target_user": target_user,
+        "loans": loans,
+        "profile": getattr(target_user, "profile", None),
+        "total_borrowed": loans.filter(status="Funded").aggregate(t=Sum("qualified_amount"))["t"] or 0,
+        "active_loans": loans.filter(status="Funded", fully_repaid=False).count(),
+    })
+
+
+@login_required
+@is_admin
+def admin_suspend_user(request, user_id):
+    from django.contrib.auth.models import User
+    target_user = get_object_or_404(User, id=user_id)
+    if target_user.is_staff:
+        messages.error(request, "Cannot suspend an admin user.")
+        return redirect("admin_user_detail", user_id=user_id)
+    target_user.is_active = not target_user.is_active
+    target_user.save()
+    action = "activated" if target_user.is_active else "suspended"
+    messages.success(request, f"User {target_user.email} has been {action}.")
+    return redirect("admin_user_detail", user_id=user_id)
+
+
+@login_required
+@is_admin
+def admin_reset_kyc(request, user_id):
+    from django.contrib.auth.models import User
+    from loans.models import LoanApplication
+    target_user = get_object_or_404(User, id=user_id)
+    LoanApplication.objects.filter(user=target_user).update(
+        kyc_face_verified=False, kyc_confidence=0
+    )
+    try:
+        profile = target_user.profile
+        profile.face_embedding = None
+        profile.face_kyc_verified = False
+        profile.save(update_fields=["face_embedding", "face_kyc_verified"])
+    except Exception:
+        pass
+    messages.success(request, f"KYC reset for {target_user.email}. They must re-verify.")
+    return redirect("admin_user_detail", user_id=user_id)
+
+
+@login_required
+@is_admin
+def admin_set_tier(request, user_id):
+    from django.contrib.auth.models import User
+    if request.method != "POST":
+        return redirect("admin_user_detail", user_id=user_id)
+    target_user = get_object_or_404(User, id=user_id)
+    new_tier = request.POST.get("tier")
+    valid_tiers = ["NEW", "BRONZE", "SILVER", "GOLD", "PLATINUM"]
+    if new_tier not in valid_tiers:
+        messages.error(request, "Invalid tier.")
+        return redirect("admin_user_detail", user_id=user_id)
+    try:
+        profile = target_user.profile
+        profile.trust_tier = new_tier
+        profile.save(update_fields=["trust_tier"])
+        messages.success(request, f"Trust tier updated to {new_tier} for {target_user.email}.")
+    except Exception as e:
+        messages.error(request, f"Could not update tier: {e}")
+    return redirect("admin_user_detail", user_id=user_id)
+
+
+# ════════════════════════════════════════════════════════════
+# LOAN MANAGEMENT
+# ════════════════════════════════════════════════════════════
+
+@login_required
+@is_admin
+def admin_extend_loan(request, loan_id):
+    from loans.models import LoanApplication
+    if request.method != "POST":
+        return redirect("admin_loan_detail", loan_id=loan_id)
+    loan = get_object_or_404(LoanApplication, id=loan_id)
+    extra_months = int(request.POST.get("extra_months", 1))
+    reason = request.POST.get("reason", "")
+    loan.repayment_period = (loan.repayment_period or 12) + extra_months
+    loan.save(update_fields=["repayment_period"])
+    try:
+        from notification.models import Notification
+        Notification.objects.create(
+            user=loan.user,
+            title="Loan Period Extended",
+            message=f"Your loan #{loan.id} repayment period has been extended by {extra_months} month(s). New period: {loan.repayment_period} months.",
+            link=f"/loans/loan/result/{loan.id}/",
+        )
+    except Exception:
+        pass
+    messages.success(request, f"Loan #{loan_id} extended by {extra_months} month(s). Reason: {reason}")
+    return redirect("admin_loan_detail", loan_id=loan_id)
+
+
+@login_required
+@is_admin
+def admin_mark_default(request, loan_id):
+    from loans.models import LoanApplication
+    if request.method != "POST":
+        return redirect("admin_loan_detail", loan_id=loan_id)
+    loan = get_object_or_404(LoanApplication, id=loan_id)
+    loan.status = "Defaulted"
+    loan.rejection_reason = request.POST.get("reason", "Loan marked as defaulted by admin.")
+    loan.save(update_fields=["status", "rejection_reason"])
+    try:
+        profile = loan.user.profile
+        profile.trust_tier = "NEW"
+        profile.save(update_fields=["trust_tier"])
+    except Exception:
+        pass
+    try:
+        from notification.models import Notification
+        Notification.objects.create(
+            user=loan.user,
+            title="Loan Defaulted",
+            message=f"Your loan #{loan.id} has been marked as defaulted. Please contact support.",
+            link="/support/",
+        )
+    except Exception:
+        pass
+    messages.warning(request, f"Loan #{loan_id} marked as defaulted. User trust tier reset.")
+    return redirect("admin_loan_detail", loan_id=loan_id)
+
+
+@login_required
+@is_admin
+def admin_write_off(request, loan_id):
+    from loans.models import LoanApplication
+    if request.method != "POST":
+        return redirect("admin_loan_detail", loan_id=loan_id)
+    loan = get_object_or_404(LoanApplication, id=loan_id)
+    loan.status = "Written Off"
+    loan.fully_repaid = True
+    loan.amount_remaining = 0
+    loan.rejection_reason = f"Written off by {request.user.username}: {request.POST.get('reason', '')}"
+    loan.save(update_fields=["status", "fully_repaid", "amount_remaining", "rejection_reason"])
+    messages.success(request, f"Loan #{loan_id} written off as bad debt.")
+    return redirect("admin_loan_detail", loan_id=loan_id)
+
+
+@login_required
+@is_admin
+def admin_send_reminder(request, loan_id):
+    from loans.models import LoanApplication
+    loan = get_object_or_404(LoanApplication, id=loan_id)
+    try:
+        from notification.models import Notification
+        Notification.objects.create(
+            user=loan.user,
+            title="⚠ Payment Reminder",
+            message=f"This is a reminder that your loan #{loan.id} repayment of KES {loan.amount_remaining} is due. Please make payment to avoid penalties.",
+            link=f"/wallet/",
+        )
+        messages.success(request, f"Payment reminder sent to {loan.user.email}.")
+    except Exception as e:
+        messages.error(request, f"Could not send reminder: {e}")
+    return redirect("admin_loan_detail", loan_id=loan_id)
+
+
+@login_required
+@is_admin
+def admin_add_note(request, loan_id):
+    from loans.models import LoanApplication
+    if request.method != "POST":
+        return redirect("admin_loan_detail", loan_id=loan_id)
+    loan = get_object_or_404(LoanApplication, id=loan_id)
+    note = request.POST.get("note", "").strip()
+    if note:
+        existing = loan.rejection_reason or ""
+        timestamp = timezone.now().strftime("%d/%m/%Y %H:%M")
+        loan.rejection_reason = f"{existing}\n[{timestamp}] Admin note by {request.user.username}: {note}".strip()
+        loan.save(update_fields=["rejection_reason"])
+        messages.success(request, "Note added.")
+    return redirect("admin_loan_detail", loan_id=loan_id)
+
+
+@login_required
+@is_admin
+def admin_flag_loan(request, loan_id):
+    from loans.models import LoanApplication
+    loan = get_object_or_404(LoanApplication, id=loan_id)
+    try:
+        loan.is_flagged = not getattr(loan, "is_flagged", False)
+        loan.save(update_fields=["is_flagged"])
+        status = "flagged" if loan.is_flagged else "unflagged"
+        messages.success(request, f"Loan #{loan_id} {status} for investigation.")
+    except Exception as e:
+        messages.error(request, f"Could not flag loan: {e}")
+    return redirect("admin_loan_detail", loan_id=loan_id)
+
+
+# ════════════════════════════════════════════════════════════
+# SYSTEM CONTROLS
+# ════════════════════════════════════════════════════════════
+
+@login_required
+@is_admin
+def admin_system_settings(request):
+    from loans.models import SystemSettings
+    settings_obj, _ = SystemSettings.objects.get_or_create(id=1)
+
+    if request.method == "POST":
+        settings_obj.loans_enabled = request.POST.get("loans_enabled") == "on"
+        settings_obj.min_loan_amount = int(request.POST.get("min_loan_amount", 1000))
+        settings_obj.max_loan_amount_new = int(request.POST.get("max_loan_amount_new", 10000))
+        settings_obj.max_loan_amount_bronze = int(request.POST.get("max_loan_amount_bronze", 30000))
+        settings_obj.max_loan_amount_silver = int(request.POST.get("max_loan_amount_silver", 75000))
+        settings_obj.max_loan_amount_gold = int(request.POST.get("max_loan_amount_gold", 150000))
+        settings_obj.max_loan_amount_platinum = int(request.POST.get("max_loan_amount_platinum", 500000))
+        settings_obj.min_interest_rate = float(request.POST.get("min_interest_rate", 10))
+        settings_obj.max_interest_rate = float(request.POST.get("max_interest_rate", 25))
+        settings_obj.maintenance_message = request.POST.get("maintenance_message", "")
+        settings_obj.save()
+        messages.success(request, "System settings updated.")
+        return redirect("admin_system_settings")
+
+    return render(request, "loans/admin_system_settings.html", {
+        "settings": settings_obj,
     })

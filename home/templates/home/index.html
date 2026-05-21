@@ -1,0 +1,85 @@
+
+<section style="background:#080c14;padding:5rem 0;">
+  <div class="container">
+    <div class="text-center mb-5">
+      <p style="font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#e8a020;">Loan Calculator</p>
+      <h2 style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:#fff;letter-spacing:-0.03em;">How much can you borrow?</h2>
+      <p style="color:#4a5568;font-size:0.9rem;">Estimate your monthly payments instantly.</p>
+    </div>
+    <div style="max-width:760px;margin:0 auto;background:#111827;border:1px solid rgba(255,255,255,0.07);border-radius:24px;padding:2.5rem;">
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="mb-4">
+            <div class="d-flex justify-content-between mb-2">
+              <label style="font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:#4a5568;">Loan Amount</label>
+              <span style="font-family:'DM Mono',monospace;font-weight:700;color:#e8a020;" id="amtDisp">KES 50,000</span>
+            </div>
+            <input type="range" id="calcAmt" min="1000" max="200000" value="50000" step="1000" style="width:100%;accent-color:#e8a020;">
+            <div class="d-flex justify-content-between" style="font-size:0.6rem;color:#4a5568;"><span>KES 1K</span><span>KES 200K</span></div>
+          </div>
+          <div class="mb-4">
+            <div class="d-flex justify-content-between mb-2">
+              <label style="font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:#4a5568;">Repayment Period</label>
+              <span style="font-family:'DM Mono',monospace;font-weight:700;color:#e8a020;" id="perDisp">12 months</span>
+            </div>
+            <input type="range" id="calcPer" min="1" max="36" value="12" step="1" style="width:100%;accent-color:#e8a020;">
+            <div class="d-flex justify-content-between" style="font-size:0.6rem;color:#4a5568;"><span>1 month</span><span>36 months</span></div>
+          </div>
+          <div class="mb-4">
+            <label style="font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:#4a5568;display:block;margin-bottom:0.5rem;">Employment</label>
+            <select id="calcEmp" style="width:100%;background:#161f30;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.6rem 0.9rem;color:#e2e8f2;font-size:0.85rem;outline:none;">
+              <option value="employed">Employed</option>
+              <option value="self">Self-employed</option>
+              <option value="business">Business Owner</option>
+              <option value="student">Student</option>
+            </select>
+          </div>
+          <a href="{% url 'loan_apply' %}" style="display:block;text-align:center;background:#e8a020;color:#000;font-weight:700;font-size:0.9rem;padding:0.8rem;border-radius:10px;text-decoration:none;">
+            <i class="bi bi-lightning-fill me-1"></i> Apply Now
+          </a>
+        </div>
+        <div class="col-md-6 d-flex flex-column gap-3">
+          <div style="background:#161f30;border:1px solid rgba(232,160,32,0.2);border-radius:14px;padding:1.5rem;text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center;">
+            <div style="font-family:'DM Mono',monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:#4a5568;margin-bottom:0.4rem;">Monthly Payment</div>
+            <div style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:#e8a020;" id="calcMonthly">KES 4,792</div>
+            <div style="font-size:0.72rem;color:#4a5568;">per month</div>
+          </div>
+          <div style="background:#161f30;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:1rem;display:flex;justify-content:space-between;">
+            <div><div style="font-size:0.6rem;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:#4a5568;">Total Repayable</div><div style="font-family:'DM Mono',monospace;font-size:0.95rem;font-weight:700;color:#fff;margin-top:2px;" id="calcTotal">KES 57,500</div></div>
+            <div style="text-align:right;"><div style="font-size:0.6rem;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:#4a5568;">Interest Cost</div><div style="font-family:'DM Mono',monospace;font-size:0.95rem;font-weight:700;color:#f05060;margin-top:2px;" id="calcInt">KES 7,500</div></div>
+          </div>
+          <div style="background:#161f30;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:1rem;display:flex;justify-content:space-between;">
+            <div><div style="font-size:0.6rem;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:#4a5568;">Est. Rate</div><div style="font-family:'DM Mono',monospace;font-size:0.95rem;font-weight:700;color:#10c98f;margin-top:2px;" id="calcRate">15% p.a.</div></div>
+            <div style="text-align:right;"><div style="font-size:0.6rem;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:#4a5568;">Processing Fee</div><div style="font-family:'DM Mono',monospace;font-size:0.95rem;font-weight:700;color:#94a3b8;margin-top:2px;" id="calcFee">KES 1,000</div></div>
+          </div>
+          <div style="font-size:0.65rem;color:#4a5568;text-align:center;line-height:1.5;">Estimates only. Actual rates depend on your credit score.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+(function(){
+  var a=document.getElementById('calcAmt'),p=document.getElementById('calcPer'),e=document.getElementById('calcEmp');
+  function fmt(n){return 'KES '+Math.round(n).toLocaleString();}
+  function getRate(amt,per,emp){
+    var r=0.15;
+    if(emp==='student')r=0.22;else if(emp==='self')r=0.18;else if(emp==='business')r=0.16;
+    if(amt>100000)r-=0.01;if(per>18)r+=0.01;if(per<=3)r+=0.02;
+    return Math.max(0.10,Math.min(0.25,r));
+  }
+  function calc(){
+    var amt=parseInt(a.value),per=parseInt(p.value),emp=e.value;
+    document.getElementById('amtDisp').textContent=fmt(amt);
+    document.getElementById('perDisp').textContent=per+(per===1?' month':' months');
+    var r=getRate(amt,per,emp),monthly=(amt*(1+r))/per,total=monthly*per,interest=total-amt,fee=Math.max(500,amt*0.02);
+    document.getElementById('calcMonthly').textContent=fmt(monthly);
+    document.getElementById('calcTotal').textContent=fmt(total);
+    document.getElementById('calcInt').textContent=fmt(interest);
+    document.getElementById('calcRate').textContent=(r*100).toFixed(0)+'% p.a.';
+    document.getElementById('calcFee').textContent=fmt(fee);
+  }
+  a.addEventListener('input',calc);p.addEventListener('input',calc);e.addEventListener('change',calc);
+  calc();
+})();
+</script>

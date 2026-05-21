@@ -10,6 +10,10 @@ from django.contrib.auth.decorators import login_required
 from .forms import UserUpdateForm, ProfileUpdateForm
 from django.utils import timezone
 from datetime import timedelta
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 
 
 def register(request):
@@ -213,3 +217,195 @@ def edit_profile(request):
         u_form = UserUpdateForm(instance=request.user)
         p_form = ProfileUpdateForm(instance=prof)
     return render(request, "accounts/edit_profile.html", {"u_form": u_form, "p_form": p_form})
+
+
+@login_required
+def change_password(request):
+    """
+    Allow authenticated users to change their password.
+    """
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)  # Keeps the user logged in
+            create_notification(request.user, "Security Alert 🔒", "Your password has been changed successfully.")
+            messages.success(request, 'Your password was successfully updated!')
+            return redirect('profile')
+        else:
+            messages.error(request, 'Please correct the error below.')
+    else:
+        form = PasswordChangeForm(request.user)
+    return render(request, 'accounts/change_password.html', {'form': form})
+
+
+# ── Forgot Password (OTP-based) ───────────────────────────────
+
+def forgot_password(request):
+    """
+    Step 1 — Ask for email. OTP is saved to UserProfile.otp_code (DB).
+    Session only stores the user_id so we can look up the profile later.
+    """
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip().lower()
+        account_found = False
+        try:
+            user       = User.objects.get(email__iexact=email)
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            otp        = generate_otp()
+            profile.otp_code       = otp
+            profile.otp_created_at = timezone.now()
+            profile.otp_attempts   = 0
+            profile.save(update_fields=["otp_code", "otp_created_at", "otp_attempts"])
+            send_otp_email(email, otp, purpose="password_reset")
+
+            # Only need user_id in session; OTP truth is in the DB.
+            request.session["pw_reset_user_id"] = user.id
+            request.session.modified = True
+            request.session.save()           # force flush before redirect
+            account_found = True
+
+        except User.DoesNotExist:
+            pass  # neutral message shown regardless
+
+        messages.success(
+            request,
+            f"If an account with {email} exists, a reset code has been sent. Check your inbox.",
+        )
+        if account_found:
+            return redirect("forgot_password_verify_otp")
+        return redirect("forgot_password")
+
+    return render(request, "accounts/forgot_password.html")
+
+
+def forgot_password_verify_otp(request):
+    """
+    Step 2 — Verify the OTP.
+    OTP truth is in UserProfile.otp_code (DB); session only carries user_id.
+    """
+    user_id = request.session.get("pw_reset_user_id")
+
+    if not user_id:
+        messages.error(request, "Session expired or invalid. Please start again.")
+        return redirect("forgot_password")
+
+    try:
+        user    = User.objects.get(pk=user_id)
+        profile = UserProfile.objects.get(user=user)
+    except (User.DoesNotExist, UserProfile.DoesNotExist):
+        messages.error(request, "Account not found. Please start again.")
+        return redirect("forgot_password")
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        # ── Resend OTP ────────────────────────────────────────────
+        if action == "resend":
+            otp = generate_otp()
+            profile.otp_code       = otp
+            profile.otp_created_at = timezone.now()
+            profile.otp_attempts   = 0
+            profile.save(update_fields=["otp_code", "otp_created_at", "otp_attempts"])
+            send_otp_email(user.email, otp, purpose="password_reset")
+            messages.success(request, f"New code sent to {user.email}.")
+            return redirect("forgot_password_verify_otp")
+
+        # ── Brute Force & Expiry Check ────────────────────────────
+        if profile.otp_attempts >= 5:
+            messages.error(request, "Too many failed attempts. Please request a new code.")
+            return redirect("forgot_password_verify_otp")
+
+        if not profile.otp_created_at or (timezone.now() - profile.otp_created_at).total_seconds() > 600:
+            messages.error(request, "Code has expired (10 min). Please resend.")
+            return redirect("forgot_password_verify_otp")
+
+        # ── Verify OTP ────────────────────────────────────────────
+        entered_otp = request.POST.get("otp", "").strip()
+        if profile.otp_code and entered_otp == profile.otp_code:
+            # Consume the OTP immediately
+            profile.otp_code       = None
+            profile.otp_attempts   = 0
+            profile.save(update_fields=["otp_code", "otp_attempts"])
+            
+            request.session["pw_reset_verified"] = True
+            request.session.modified = True
+            request.session.save()
+            messages.success(request, "Identity verified. Please set your new password.")
+            return redirect("forgot_password_reset")
+
+        # Failure: increment attempts
+        profile.otp_attempts += 1
+        profile.save(update_fields=["otp_attempts"])
+        
+        attempts_left = 5 - profile.otp_attempts
+        if attempts_left > 0:
+            messages.error(request, f"Invalid code. {attempts_left} attempts remaining.")
+        else:
+            messages.error(request, "Invalid code. Too many failed attempts.")
+            
+        return redirect("forgot_password_verify_otp")
+
+    # Mask the email for display
+    parts = user.email.split("@")
+    masked_email = parts[0][:2] + "***@" + parts[1]
+
+    return render(request, "accounts/forgot_password_verify_otp.html", {
+        "masked_email": masked_email,
+    })
+
+
+def forgot_password_reset(request):
+    """
+    Step 3 — Set a new password (only reachable after OTP verified).
+    """
+    user_id  = request.session.get("pw_reset_user_id")
+    verified = request.session.get("pw_reset_verified", False)
+
+    if not user_id or not verified:
+        messages.error(request, "Session expired or invalid. Please start again.")
+        return redirect("forgot_password")
+
+    if request.method == "POST":
+        password1 = request.POST.get("password1", "")
+        password2 = request.POST.get("password2", "")
+
+        if password1 != password2:
+            messages.error(request, "Passwords do not match.")
+            return redirect("forgot_password_reset")
+
+        try:
+            user = User.objects.get(pk=user_id)
+            validate_password(password1, user=user)
+        except User.DoesNotExist:
+            messages.error(request, "User not found. Please start again.")
+            return redirect("forgot_password")
+        except ValidationError as e:
+            for err in e.messages:
+                messages.error(request, err)
+            return redirect("forgot_password_reset")
+
+        user.set_password(password1)
+        user.save()
+
+        # Clear password-reset session keys
+        for key in ["pw_reset_user_id", "pw_reset_otp", "pw_reset_verified"]:
+            request.session.pop(key, None)
+
+        # Clear stored OTP in profile too
+        try:
+            profile = UserProfile.objects.get(user=user)
+            profile.otp_code = None
+            profile.save(update_fields=["otp_code"])
+        except UserProfile.DoesNotExist:
+            pass
+
+        create_notification(
+            user,
+            title="Password Changed 🔐",
+            message="Your PrimeLend password was successfully reset. If this wasn't you, contact support immediately.",
+        )
+        messages.success(request, "Password reset successfully! Please log in with your new password.")
+        return redirect("login")
+
+    return render(request, "accounts/forgot_password_reset.html")

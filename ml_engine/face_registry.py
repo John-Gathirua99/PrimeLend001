@@ -11,10 +11,7 @@ This prevents one person from creating multiple accounts.
 """
 import json
 import logging
-try:
-    import numpy
-except ImportError:
-    import numpy as np
+import numpy as np
 
 logger = logging.getLogger(__name__)
 

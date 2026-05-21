@@ -220,10 +220,13 @@
             {% endif %}
           </div>
           <div class="rv-kyc-face">
-            <div class="rv-kyc-face-lbl">ID Document</div>
+            <div class="rv-kyc-face-lbl">ID Face (what AI saw)</div>
             {% if loan.id_document_front %}
-            <img src="{{ loan.id_document_front.url }}" onclick="openLightbox(this.src)"
-                 style="width:90px!important;height:90px!important;border-radius:50%!important;object-fit:cover!important;object-position:center top!important;display:block!important;margin:0 auto!important;cursor:zoom-in;border:3px solid {% if loan.kyc_face_verified %}#16a34a{% elif loan.kyc_face_verified == False %}#dc2626{% else %}#e2e8f0{% endif %}!important;">
+            <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;margin:0 auto;border:3px solid {% if loan.kyc_face_verified %}#16a34a{% elif loan.kyc_face_verified == False %}#dc2626{% else %}#e2e8f0{% endif %};">
+              <img src="{{ loan.id_document_front.url }}" onclick="openLightbox(this.src)"
+                   style="width:180px!important;height:90px!important;max-width:none!important;object-fit:cover!important;object-position:left center!important;display:block!important;margin:0!important;cursor:zoom-in;transform:translateX(0);">
+            </div>
+            <div style="font-size:0.58rem;color:#94a3b8;text-align:center;margin-top:0.25rem;">Left 40% of ID</div>
             {% endif %}
           </div>
         </div>
@@ -289,6 +292,55 @@
       </div>
 
       <!-- Approve action -->
+
+      <!-- ── ADMIN LOAN ACTIONS ── -->
+      <div class="rv-action-panel mb-3">
+        <div class="rv-action-title">🛠 Loan Management Actions</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+
+          <!-- Extend -->
+          <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:0.85rem;">
+            <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:0.5rem;">Extend Repayment</div>
+            <form method="POST" action="{% url 'admin_extend_loan' loan.id %}">{% csrf_token %}
+              <input type="number" name="extra_months" min="1" max="24" value="1" style="width:100%;background:#111827;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.4rem 0.6rem;color:#e2e8f2;font-size:0.8rem;margin-bottom:0.4rem;outline:none;">
+              <input type="text" name="reason" placeholder="Reason…" style="width:100%;background:#111827;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.4rem 0.6rem;color:#e2e8f2;font-size:0.8rem;margin-bottom:0.5rem;outline:none;">
+              <button type="submit" style="width:100%;background:rgba(74,144,226,0.15);color:#4a90e2;border:1px solid rgba(74,144,226,0.25);border-radius:6px;padding:0.4rem;font-size:0.75rem;font-weight:600;cursor:pointer;">📅 Extend Period</button>
+            </form>
+          </div>
+
+          <!-- Add Note -->
+          <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:0.85rem;">
+            <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:0.5rem;">Add Admin Note</div>
+            <form method="POST" action="{% url 'admin_add_note' loan.id %}">{% csrf_token %}
+              <textarea name="note" placeholder="Internal note (not shown to user)…" style="width:100%;background:#111827;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.4rem 0.6rem;color:#e2e8f2;font-size:0.8rem;margin-bottom:0.5rem;outline:none;resize:vertical;min-height:60px;"></textarea>
+              <button type="submit" style="width:100%;background:rgba(232,160,32,0.12);color:#e8a020;border:1px solid rgba(232,160,32,0.2);border-radius:6px;padding:0.4rem;font-size:0.75rem;font-weight:600;cursor:pointer;">📝 Save Note</button>
+            </form>
+          </div>
+
+          <!-- Send Reminder -->
+          <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:0.85rem;">
+            <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:0.5rem;">Payment Reminder</div>
+            <p style="font-size:0.75rem;color:#64748b;margin-bottom:0.5rem;">Send an in-app reminder to the borrower about their outstanding balance.</p>
+            <a href="{% url 'admin_send_reminder' loan.id %}" style="display:block;text-align:center;background:rgba(16,201,143,0.1);color:#10c98f;border:1px solid rgba(16,201,143,0.2);border-radius:6px;padding:0.4rem;font-size:0.75rem;font-weight:600;text-decoration:none;">🔔 Send Reminder</a>
+          </div>
+
+          <!-- Mark Default / Write Off -->
+          <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:0.85rem;">
+            <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:0.5rem;">Escalated Actions</div>
+            <form method="POST" action="{% url 'admin_mark_default' loan.id %}" onsubmit="return confirm('Mark as defaulted? This resets the user trust tier.')">
+              {% csrf_token %}
+              <input type="text" name="reason" placeholder="Default reason…" style="width:100%;background:#111827;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.4rem 0.6rem;color:#e2e8f2;font-size:0.8rem;margin-bottom:0.4rem;outline:none;">
+              <button type="submit" style="width:100%;background:rgba(240,80,96,0.1);color:#f05060;border:1px solid rgba(240,80,96,0.2);border-radius:6px;padding:0.35rem;font-size:0.72rem;font-weight:600;cursor:pointer;margin-bottom:0.35rem;">⚠ Mark Defaulted</button>
+            </form>
+            <form method="POST" action="{% url 'admin_write_off' loan.id %}" onsubmit="return confirm('Write off this loan as bad debt?')">
+              {% csrf_token %}
+              <input type="text" name="reason" placeholder="Write-off reason…" style="width:100%;background:#111827;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.4rem 0.6rem;color:#e2e8f2;font-size:0.8rem;margin-bottom:0.4rem;outline:none;">
+              <button type="submit" style="width:100%;background:rgba(148,163,184,0.08);color:#94a3b8;border:1px solid rgba(148,163,184,0.15);border-radius:6px;padding:0.35rem;font-size:0.72rem;font-weight:600;cursor:pointer;">🗑 Write Off Loan</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
       {% if loan.status == 'Pending' %}
       <div class="rv-action-panel mb-3">
         <div class="rv-action-title" style="color:#16a34a;">✓ Approve Loan</div>

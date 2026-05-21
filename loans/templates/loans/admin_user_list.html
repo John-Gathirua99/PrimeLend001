@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}User Management — PrimeLend Admin{% endblock %}
+{% block extra_css %}
+<style>
+:root{--ink:#080c14;--panel:#111827;--panel-2:#161f30;--border:rgba(255,255,255,0.07);--gold:#e8a020;--green:#10c98f;--red:#f05060;--blue:#4a90e2;--text:#e2e8f2;--text-2:#94a3b8;--text-3:#4a5568;}
+.adm{background:var(--ink);min-height:100vh;margin:-40px -12px -40px;padding:2rem;font-family:'DM Sans',sans-serif;color:var(--text);}
+.adm-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;}
+.adm-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:#fff;letter-spacing:-0.03em;}
+.adm-title span{color:var(--gold);}
+.search-bar{display:flex;gap:0.5rem;}
+.search-input{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.9rem;color:var(--text);font-size:0.85rem;outline:none;width:260px;}
+.search-input:focus{border-color:var(--gold);}
+.search-btn{background:var(--gold);color:#000;border:none;border-radius:8px;padding:0.5rem 1rem;font-weight:700;cursor:pointer;font-size:0.82rem;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;margin-bottom:1.5rem;}
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:1rem 1.25rem;}
+.stat-n{font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:700;color:#fff;}
+.stat-l{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-3);margin-top:2px;}
+.user-table{width:100%;border-collapse:collapse;}
+.user-table th{font-family:'DM Mono',monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-3);padding:0.6rem 0.9rem;border-bottom:1px solid var(--border);text-align:left;}
+.user-table td{padding:0.7rem 0.9rem;border-bottom:1px solid var(--border);font-size:0.83rem;vertical-align:middle;}
+.user-table tr:hover td{background:rgba(255,255,255,0.02);}
+.tier-badge{display:inline-block;padding:0.2rem 0.6rem;border-radius:4px;font-family:'DM Mono',monospace;font-size:0.6rem;font-weight:500;letter-spacing:0.06em;}
+.tier-NEW{background:rgba(148,163,184,0.1);color:#94a3b8;border:1px solid rgba(148,163,184,0.2);}
+.tier-BRONZE{background:rgba(180,120,60,0.12);color:#cd7f32;border:1px solid rgba(180,120,60,0.2);}
+.tier-SILVER{background:rgba(180,180,200,0.1);color:#c0c0c0;border:1px solid rgba(180,180,200,0.2);}
+.tier-GOLD{background:rgba(232,160,32,0.12);color:var(--gold);border:1px solid rgba(232,160,32,0.2);}
+.tier-PLATINUM{background:rgba(100,200,255,0.1);color:#67e8f9;border:1px solid rgba(100,200,255,0.2);}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;}
+.dot-active{background:var(--green);box-shadow:0 0 5px var(--green);}
+.dot-suspended{background:var(--red);}
+.adm-btn{padding:0.35rem 0.85rem;border-radius:6px;font-size:0.75rem;font-weight:600;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;transition:opacity 0.15s;}
+.adm-btn:hover{opacity:0.8;}
+.btn-view{background:var(--panel-2);color:var(--text-2);border:1px solid var(--border);}
+.btn-danger{background:rgba(240,80,96,0.1);color:var(--red);border:1px solid rgba(240,80,96,0.2);}
+.export-row{display:flex;gap:0.5rem;margin-bottom:1.25rem;flex-wrap:wrap;}
+.export-btn{background:var(--panel);border:1px solid var(--border);color:var(--text-2);border-radius:8px;padding:0.45rem 1rem;font-size:0.78rem;font-weight:600;cursor:pointer;text-decoration:none;transition:all 0.15s;}
+.export-btn:hover{border-color:var(--gold);color:var(--gold);}
+</style>
+{% endblock %}
+{% block content %}
+<div class="adm">
+  <div class="adm-hdr">
+    <div>
+      <div class="adm-title">User <span>Management</span></div>
+      <div style="font-size:0.75rem;color:var(--text-3);margin-top:2px;">{{ total }} registered accounts</div>
+    </div>
+    <form class="search-bar" method="GET">
+      <input class="search-input" name="q" value="{{ search }}" placeholder="Search by name or email…">
+      <button class="search-btn" type="submit">Search</button>
+    </form>
+  </div>
+
+  <div class="export-row">
+    <a class="export-btn" href="{% url 'admin_export_loans' %}?status=all">⬇ Export All Loans CSV</a>
+    <a class="export-btn" href="{% url 'admin_export_loans' %}?status=Funded">⬇ Export Active Loans</a>
+    <a class="export-btn" href="{% url 'admin_export_loans' %}?status=Pending">⬇ Export Pending</a>
+    <a class="export-btn" href="{% url 'admin_system_settings' %}">⚙ System Settings</a>
+  </div>
+
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
+    <div style="overflow-x:auto;">
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Trust Tier</th>
+            <th>Loans</th>
+            <th>Active</th>
+            <th>Total Borrowed</th>
+            <th>KYC</th>
+            <th>Status</th>
+            <th>Joined</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in user_data %}
+          <tr>
+            <td>
+              <div style="font-weight:600;color:#fff;">{{ item.user.get_full_name|default:item.user.username }}</div>
+              <div style="font-size:0.72rem;color:var(--text-3);">{{ item.user.email }}</div>
+            </td>
+            <td><span class="tier-badge tier-{{ item.trust_tier }}">{{ item.trust_tier }}</span></td>
+            <td><span style="font-family:'DM Mono',monospace;">{{ item.loan_count }}</span></td>
+            <td>
+              {% if item.active_loans > 0 %}
+              <span style="color:var(--gold);font-family:'DM Mono',monospace;">{{ item.active_loans }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td style="font-family:'DM Mono',monospace;font-size:0.8rem;">
+              {% if item.total_borrowed %}KES {{ item.total_borrowed|floatformat:0 }}{% else %}—{% endif %}
+            </td>
+            <td>
+              {% if item.kyc_verified %}
+              <span style="color:var(--green);font-size:0.75rem;">✓ Verified</span>
+              {% else %}
+              <span style="color:var(--text-3);font-size:0.75rem;">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.is_suspended %}
+              <span style="color:var(--red);font-size:0.78rem;"><span class="status-dot dot-suspended"></span>Suspended</span>
+              {% else %}
+              <span style="color:var(--green);font-size:0.78rem;"><span class="status-dot dot-active"></span>Active</span>
+              {% endif %}
+            </td>
+            <td style="font-size:0.75rem;color:var(--text-3);">{{ item.user.date_joined|date:"d M Y" }}</td>
+            <td>
+              <div style="display:flex;gap:0.4rem;">
+                <a href="{% url 'admin_user_detail' item.user.id %}" class="adm-btn btn-view">View</a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-3);">No users found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

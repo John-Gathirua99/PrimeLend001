@@ -1,11 +1,11 @@
 try:
-    import pandas
+    import pandas as pd
 except ImportError:
-    pandas = None  # not available in production as pd
+    pd = None  # not available in production as pd
 try:
-    import numpy
+    import numpy as np
 except ImportError:
-    numpy = None  # not available in production as np
+    np = None  # not available in production as np
 try:
     import joblib
 except ImportError:
@@ -24,9 +24,9 @@ N = 500
 os.makedirs("ml_engine/model", exist_ok=True)
 os.makedirs("ml_engine/data", exist_ok=True)
 
-# ─────────────────────────────────────────────
+# ---
 # 1. CREDIT TRAINING DATA
-# ─────────────────────────────────────────────
+# ---
 def generate_credit_data(n):
     ages = np.random.randint(18, 65, n)
     monthly_income = np.random.randint(8000, 300000, n)
@@ -60,6 +60,7 @@ def generate_credit_data(n):
     df = pd.DataFrame({
         "age": ages,
         "monthly_income": monthly_income,
+        "loan_amount": (monthly_income * np.random.uniform(0.5, 5, n)).astype(int),
         "repayment_period": repayment_period,
         "credit_history": credit_history,
         "debt_to_income_ratio": debt_to_income_ratio,
@@ -68,6 +69,9 @@ def generate_credit_data(n):
         "on_time_repayment_count": on_time_repayment_count,
         "fraud_score": fraud_score,
         "recent_application_count": recent_application_count,
+        "kyc_face_verified": np.random.choice([0, 1], n, p=[0.2, 0.8]),
+        "ocr_id_verified": np.random.choice([0, 1], n, p=[0.1, 0.9]),
+        "id_reuse_flag": np.random.choice([0, 1], n, p=[0.95, 0.05]),
         "approved": approved,
     })
     return df
@@ -76,9 +80,9 @@ credit_df = generate_credit_data(N)
 credit_df.to_csv("ml_engine/data/credit_training_data.csv", index=False)
 print(f"Credit data: {N} rows | Approval rate: {credit_df['approved'].mean():.1%}")
 
-# ─────────────────────────────────────────────
+# ---
 # 2. LOAN TRAINING DATA
-# ─────────────────────────────────────────────
+# ---
 def generate_loan_data(n):
     employment_options = ["Employed", "Self-employed", "Unemployed", "Student"]
     employment_status = np.random.choice(employment_options, n, p=[0.5, 0.25, 0.15, 0.1])
@@ -118,9 +122,9 @@ loan_df = generate_loan_data(N)
 loan_df.to_csv("ml_engine/data/loan_data.csv", index=False)
 print(f"Loan data: {N} rows | Approval rate: {loan_df['approved'].mean():.1%}")
 
-# ─────────────────────────────────────────────
+# ---
 # 3. FRAUD TRAINING DATA
-# ─────────────────────────────────────────────
+# ---
 def generate_fraud_data(n):
     ages = np.random.randint(18, 65, n)
     monthly_income = np.random.randint(5000, 250000, n)
@@ -159,6 +163,13 @@ def generate_fraud_data(n):
         "recent_applications": recent_applications,
         "id_reuse_flag": id_reuse_flag,
         "income_age_ratio": np.round(income_age_ratio, 2),
+        "loan_income_ratio": np.round(loan_amount / (monthly_income + 1), 2),
+        "night_application": np.random.choice([0, 1], n, p=[0.9, 0.1]),
+        "vpn_usage": np.random.choice([0, 1], n, p=[0.95, 0.05]),
+        "failed_kyc_attempts": np.random.choice([0, 1, 2], n, p=[0.8, 0.15, 0.05]),
+        "multiple_ids_flag": np.random.choice([0, 1], n, p=[0.98, 0.02]),
+        "app_completion_seconds": np.random.randint(60, 600, n),
+        "same_day_multiple_apps": np.random.choice([0, 1], n, p=[0.9, 0.1]),
         "fraud": fraud,
     })
     return df
@@ -167,10 +178,10 @@ fraud_df = generate_fraud_data(N)
 fraud_df.to_csv("ml_engine/data/fraud_training_data.csv", index=False)
 print(f"Fraud data: {N} rows | Fraud rate: {fraud_df['fraud'].mean():.1%}")
 
-# ─────────────────────────────────────────────
+# ---
 # TRAIN: CREDIT MODEL
-# ─────────────────────────────────────────────
-print("\n── Training Credit Model ──")
+# ---
+print("\n-- Training Credit Model --")
 X = credit_df.drop("approved", axis=1)
 y = credit_df["approved"]
 scaler = StandardScaler()
@@ -186,12 +197,12 @@ print(classification_report(y_test, preds))
 joblib.dump(credit_model, "ml_engine/credit_model.pkl")
 joblib.dump(scaler, "ml_engine/credit_scaler.pkl")
 joblib.dump(list(X.columns), "ml_engine/credit_features.pkl")
-print("✅ Credit model saved")
+print("Credit model saved")
 
-# ─────────────────────────────────────────────
+# ---
 # TRAIN: LOAN MODEL
-# ─────────────────────────────────────────────
-print("\n── Training Loan Model ──")
+# ---
+print("\n-- Training Loan Model --")
 le = LabelEncoder()
 loan_df["employment_status"] = le.fit_transform(loan_df["employment_status"])
 X = loan_df.drop("approved", axis=1)
@@ -207,12 +218,12 @@ print(classification_report(y_test, preds))
 os.makedirs("ml_engine/model", exist_ok=True)
 joblib.dump(loan_model, "ml_engine/model/loan_model.pkl")
 joblib.dump(le, "ml_engine/model/employment_encoder.pkl")
-print("✅ Loan model saved")
+print("Loan model saved")
 
-# ─────────────────────────────────────────────
+# ---
 # TRAIN: FRAUD MODEL
-# ─────────────────────────────────────────────
-print("\n── Training Fraud Model ──")
+# ---
+print("\n-- Training Fraud Model --")
 X = fraud_df.drop("fraud", axis=1)
 y = fraud_df["fraud"]
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -232,6 +243,6 @@ with open("ml_engine/fraud_feature_importance.json", "w") as f:
 
 joblib.dump(fraud_model, "ml_engine/fraud_model.pkl")
 joblib.dump(list(X.columns), "ml_engine/fraud_features.pkl")
-print("✅ Fraud model saved")
+print("Fraud model saved")
 
-print("\n✅ All models trained and saved successfully.")
+print("\n All models trained and saved successfully.")

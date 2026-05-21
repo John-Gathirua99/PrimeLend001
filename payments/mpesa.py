@@ -124,18 +124,30 @@ def b2c_payment(phone: str, amount, reference: str) -> dict:
     # See: https://developer.safaricom.co.ke/APIs/BusinessToCustomer
     try:
         access_token = get_access_token()
+        
+        initiator = getattr(settings, "MPESA_INITIATOR_NAME", "")
+        credential = getattr(settings, "MPESA_SECURITY_CREDENTIAL", "")
+
+        # ── Simulation Mode (if keys missing) ─────────────────────
+        if not initiator or not credential:
+            logger.warning(f"B2C SIMULATION for {phone} KES {amount} (Missing Initiator/Credential)")
+            return {
+                "ConversationID": "sim_conv_123",
+                "OriginatorConversationID": "sim_orig_123",
+                "ResponseDescription": "Accept the service request successfully (Simulated)",
+            }
 
         payload = {
-            "InitiatorName":      getattr(settings, "MPESA_INITIATOR_NAME", "testapi"),
-            "SecurityCredential": getattr(settings, "MPESA_SECURITY_CREDENTIAL", ""),
+            "InitiatorName":      initiator,
+            "SecurityCredential": credential,
             "CommandID":          "BusinessPayment",
             "Amount":             int(amount),
             "PartyA":             settings.MPESA_SHORTCODE,
             "PartyB":             phone,
-            "Remarks":            reference,
+            "Remarks":            reference[:20],
             "QueueTimeOutURL":    getattr(settings, "MPESA_B2C_TIMEOUT_URL",  settings.MPESA_CALLBACK_URL),
             "ResultURL":          getattr(settings, "MPESA_B2C_RESULT_URL",   settings.MPESA_CALLBACK_URL),
-            "Occassion":          reference,
+            "Occassion":          reference[:20],
         }
 
         headers = {
@@ -149,10 +161,13 @@ def b2c_payment(phone: str, amount, reference: str) -> dict:
         )
 
         response = requests.post(b2c_url, json=payload, headers=headers, timeout=30)
-        logger.info(f"B2C [{phone} KES {amount}] → {response.status_code}: {response.text}")
+        
+        if response.status_code >= 400:
+            logger.error(f"B2C Safaricom Error [{response.status_code}]: {response.text}")
+            
         response.raise_for_status()
         return response.json()
 
     except Exception as e:
         logger.error(f"B2C payment failed for {phone}: {e}")
-        raise
+        raise

@@ -32,6 +32,9 @@ urlpatterns = [
      path('wallet/', include('wallet.urls')),
      path('notification/', include('notification.urls')),
 
+     path('app/',include('application.urls')),
+     path('bot/',include('bot.urls')),
+
      path('loans/kyc/', kyc_verify_page, name='kyc_verify'),
     path('loans/kyc/ajax/', kyc_verify_ajax, name='kyc_verify_ajax'),
 

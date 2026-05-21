@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}User {{ target_user.get_full_name }} — Admin{% endblock %}
+{% block extra_css %}
+<style>
+:root{--ink:#080c14;--panel:#111827;--panel-2:#161f30;--border:rgba(255,255,255,0.07);--gold:#e8a020;--green:#10c98f;--red:#f05060;--blue:#4a90e2;--text:#e2e8f2;--text-2:#94a3b8;--text-3:#4a5568;}
+.adm{background:var(--ink);min-height:100vh;margin:-40px -12px -40px;padding:2rem;font-family:'DM Sans',sans-serif;color:var(--text);}
+.back-link{color:var(--text-3);font-size:0.8rem;text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;margin-bottom:1.5rem;}
+.back-link:hover{color:var(--gold);}
+.user-hero{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;}
+.user-avatar{width:64px;height:64px;border-radius:50%;background:var(--gold-dim);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;}
+.user-name{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:#fff;margin-bottom:0.25rem;}
+.user-email{font-size:0.83rem;color:var(--text-2);}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.75rem;margin-bottom:1.5rem;}
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:1rem;}
+.stat-n{font-family:'DM Mono',monospace;font-size:1.4rem;font-weight:700;color:#fff;}
+.stat-l{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-3);margin-top:2px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+@media(max-width:640px){.grid-2{grid-template-columns:1fr;}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:1.25rem;}
+.card-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-3);margin-bottom:1rem;}
+.info-row{display:flex;justify-content:space-between;padding:0.45rem 0;border-bottom:1px solid var(--border);font-size:0.83rem;}
+.info-row:last-child{border:none;}
+.info-lbl{color:var(--text-2);}
+.info-val{font-weight:600;color:var(--text);}
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:1rem;}
+.action-card{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:1rem;}
+.action-title{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-3);margin-bottom:0.75rem;}
+.adm-btn{padding:0.45rem 1rem;border-radius:8px;font-size:0.78rem;font-weight:600;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;transition:all 0.15s;width:100%;justify-content:center;}
+.btn-gold{background:var(--gold);color:#000;}
+.btn-danger{background:rgba(240,80,96,0.1);color:var(--red);border:1px solid rgba(240,80,96,0.2);}
+.btn-blue{background:rgba(74,144,226,0.1);color:var(--blue);border:1px solid rgba(74,144,226,0.2);}
+.btn-view{background:var(--panel);color:var(--text-2);border:1px solid var(--border);}
+.adm-input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.8rem;color:var(--text);font-size:0.83rem;outline:none;margin-bottom:0.5rem;}
+.adm-input:focus{border-color:var(--gold);}
+select.adm-input{cursor:pointer;}
+.loan-mini{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center;}
+.pill{padding:0.2rem 0.6rem;border-radius:99px;font-family:'DM Mono',monospace;font-size:0.6rem;font-weight:500;}
+.pill-funded{background:rgba(74,144,226,0.1);color:var(--blue);}
+.pill-approved{background:rgba(16,201,143,0.1);color:var(--green);}
+.pill-rejected{background:rgba(240,80,96,0.1);color:var(--red);}
+.pill-pending{background:rgba(232,160,32,0.1);color:var(--gold);}
+</style>
+{% endblock %}
+{% block content %}
+<div class="adm">
+  <a href="{% url 'admin_user_list' %}" class="back-link">← Back to User List</a>
+
+  <div class="user-hero">
+    <div class="user-avatar">👤</div>
+    <div style="flex:1;">
+      <div class="user-name">{{ target_user.get_full_name|default:target_user.username }}</div>
+      <div class="user-email">{{ target_user.email }}</div>
+      <div style="margin-top:0.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+        {% if target_user.is_active %}
+        <span style="background:rgba(16,201,143,0.1);color:var(--green);border:1px solid rgba(16,201,143,0.2);padding:0.2rem 0.7rem;border-radius:99px;font-size:0.68rem;font-family:'DM Mono',monospace;">● ACTIVE</span>
+        {% else %}
+        <span style="background:rgba(240,80,96,0.1);color:var(--red);border:1px solid rgba(240,80,96,0.2);padding:0.2rem 0.7rem;border-radius:99px;font-size:0.68rem;font-family:'DM Mono',monospace;">● SUSPENDED</span>
+        {% endif %}
+        {% if profile %}
+        <span style="background:rgba(232,160,32,0.1);color:var(--gold);border:1px solid rgba(232,160,32,0.2);padding:0.2rem 0.7rem;border-radius:99px;font-size:0.68rem;font-family:'DM Mono',monospace;">{{ profile.trust_tier|default:"NEW" }}</span>
+        {% endif %}
+        {% if target_user.is_staff %}
+        <span style="background:rgba(74,144,226,0.1);color:var(--blue);border:1px solid rgba(74,144,226,0.2);padding:0.2rem 0.7rem;border-radius:99px;font-size:0.68rem;font-family:'DM Mono',monospace;">STAFF</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-n">{{ loans.count }}</div><div class="stat-l">Total Loans</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--blue);">{{ active_loans }}</div><div class="stat-l">Active Loans</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--gold);">KES {{ total_borrowed|floatformat:0 }}</div><div class="stat-l">Total Borrowed</div></div>
+    <div class="stat"><div class="stat-n">{{ target_user.date_joined|date:"M Y" }}</div><div class="stat-l">Member Since</div></div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Profile Info -->
+    <div>
+      <div class="card" style="margin-bottom:1rem;">
+        <div class="card-title">Profile Information</div>
+        <div class="info-row"><span class="info-lbl">Username</span><span class="info-val">{{ target_user.username }}</span></div>
+        <div class="info-row"><span class="info-lbl">Email</span><span class="info-val">{{ target_user.email }}</span></div>
+        {% if profile %}
+        <div class="info-row"><span class="info-lbl">Phone</span><span class="info-val">{{ profile.phone_number|default:"—" }}</span></div>
+        <div class="info-row"><span class="info-lbl">Date of Birth</span><span class="info-val">{{ profile.date_of_birth|default:"—" }}</span></div>
+        <div class="info-row"><span class="info-lbl">National ID</span><span class="info-val" style="font-family:'DM Mono',monospace;">{{ profile.national_id|default:"—" }}</span></div>
+        <div class="info-row"><span class="info-lbl">KYC Status</span><span class="info-val">{% if profile.face_kyc_verified %}<span style="color:var(--green);">✓ Verified</span>{% else %}<span style="color:var(--text-3);">Not Verified</span>{% endif %}</span></div>
+        {% endif %}
+        <div class="info-row"><span class="info-lbl">Last Login</span><span class="info-val">{{ target_user.last_login|date:"d M Y H:i"|default:"Never" }}</span></div>
+      </div>
+
+      <!-- Loan History -->
+      <div class="card">
+        <div class="card-title">Loan History</div>
+        {% for loan in loans %}
+        <div class="loan-mini">
+          <div>
+            <div style="font-weight:600;font-size:0.85rem;">#{{ loan.id }} — KES {{ loan.qualified_amount|floatformat:0 }}</div>
+            <div style="font-size:0.72rem;color:var(--text-3);">{{ loan.created_at|date:"d M Y" }}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span class="pill pill-{% if loan.status == 'Funded' %}funded{% elif loan.status == 'Approved' %}approved{% elif loan.status == 'Rejected' %}rejected{% else %}pending{% endif %}">{{ loan.status }}</span>
+            <a href="{% url 'admin_loan_detail' loan.id %}" style="color:var(--gold);font-size:0.72rem;">View →</a>
+          </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center;padding:1rem;color:var(--text-3);font-size:0.83rem;">No loans yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Admin Actions -->
+    <div>
+      <div class="card">
+        <div class="card-title">Admin Actions</div>
+
+        <!-- Suspend/Activate -->
+        <div class="action-card" style="margin-bottom:0.75rem;">
+          <div class="action-title">Account Status</div>
+          <form method="POST" action="{% url 'admin_suspend_user' target_user.id %}" onsubmit="return confirm('{% if target_user.is_active %}Suspend this user? They will not be able to login.{% else %}Reactivate this user?{% endif %}')">
+            {% csrf_token %}
+            <button type="submit" class="adm-btn {% if target_user.is_active %}btn-danger{% else %}btn-gold{% endif %}">
+              {% if target_user.is_active %}🚫 Suspend Account{% else %}✓ Reactivate Account{% endif %}
+            </button>
+          </form>
+        </div>
+
+        <!-- Trust Tier -->
+        <div class="action-card" style="margin-bottom:0.75rem;">
+          <div class="action-title">Override Trust Tier</div>
+          <form method="POST" action="{% url 'admin_set_tier' target_user.id %}">
+            {% csrf_token %}
+            <select name="tier" class="adm-input">
+              <option value="NEW" {% if profile.trust_tier == 'NEW' %}selected{% endif %}>NEW</option>
+              <option value="BRONZE" {% if profile.trust_tier == 'BRONZE' %}selected{% endif %}>BRONZE</option>
+              <option value="SILVER" {% if profile.trust_tier == 'SILVER' %}selected{% endif %}>SILVER</option>
+              <option value="GOLD" {% if profile.trust_tier == 'GOLD' %}selected{% endif %}>GOLD</option>
+              <option value="PLATINUM" {% if profile.trust_tier == 'PLATINUM' %}selected{% endif %}>PLATINUM</option>
+            </select>
+            <button type="submit" class="adm-btn btn-blue">🏆 Update Tier</button>
+          </form>
+        </div>
+
+        <!-- Reset KYC -->
+        <div class="action-card" style="margin-bottom:0.75rem;">
+          <div class="action-title">KYC Management</div>
+          <form method="POST" action="{% url 'admin_reset_kyc' target_user.id %}" onsubmit="return confirm('Reset KYC for this user? They will need to re-verify.')">
+            {% csrf_token %}
+            <button type="submit" class="adm-btn btn-danger">🔄 Reset KYC Verification</button>
+          </form>
+        </div>
+
+        <!-- Export User Loans -->
+        <div class="action-card">
+          <div class="action-title">Export</div>
+          <a href="{% url 'admin_export_loans' %}?status=all" class="adm-btn btn-view">⬇ Export All Loans CSV</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

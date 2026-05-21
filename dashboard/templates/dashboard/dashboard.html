@@ -1,149 +1,765 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+{% block title %}My Dashboard — PrimeLend AI{% endblock %}
 
-{% block title %}My Loans - PrimeLend AI{% endblock %}
+{% block extra_css %}
+<style>
+/* ── DASHBOARD DESIGN SYSTEM ── */
+.dash {
+  background: var(--ink, #080c14);
+  min-height: 100vh;
+  margin: -40px -12px -40px;
+  padding: 2rem 2rem 4rem;
+  font-family: 'DM Sans', sans-serif;
+  color: #e2e8f2;
+}
+
+/* ── GREETING ── */
+.dash-greet {
+  margin-bottom: 2rem;
+  animation: fadeUp 0.5s ease forwards;
+}
+.dash-greet-name {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.dash-greet-name span { color: #e8a020; }
+.dash-greet-sub { font-size: 0.85rem; color: #4a5568; margin-top: 0.3rem; }
+
+/* ── STATS ROW ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+.stat-card {
+  background: var(--panel);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 1.25rem 1.4rem;
+  position: relative;
+  overflow: hidden;
+  animation: fadeUp 0.5s ease forwards;
+  opacity: 0;
+}
+.stat-card:nth-child(1) { animation-delay: 0.1s; }
+.stat-card:nth-child(2) { animation-delay: 0.2s; }
+.stat-card:nth-child(3) { animation-delay: 0.3s; }
+.stat-card:nth-child(4) { animation-delay: 0.4s; }
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+.stat-card.gold::before { background: #e8a020; }
+.stat-card.green::before { background: #10c98f; }
+.stat-card.blue::before { background: #4a90e2; }
+.stat-card.red::before { background: #f05060; }
+.stat-icon {
+  font-size: 1.4rem;
+  margin-bottom: 0.6rem;
+  display: block;
+}
+.stat-value {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+.stat-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #4a5568;
+}
+
+/* ── MAIN GRID ── */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.25rem;
+}
+@media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+
+/* ── ACTIVE LOAN CARD ── */
+.active-loan-card {
+  background: linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%);
+  border: 1px solid rgba(232,160,32,0.2);
+  border-radius: 20px;
+  padding: 1.75rem;
+  margin-bottom: 1.25rem;
+  position: relative;
+  overflow: hidden;
+  animation: fadeUp 0.5s 0.3s ease forwards;
+  opacity: 0;
+}
+.active-loan-card::after {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(232,160,32,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.loan-card-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #e8a020;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.loan-card-tag::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #e8a020;
+  box-shadow: 0 0 8px #e8a020;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+.loan-amount {
+  font-family: 'Syne', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.04em;
+  margin-bottom: 0.25rem;
+}
+.loan-sub {
+  font-size: 0.78rem;
+  color: #4a5568;
+  margin-bottom: 1.25rem;
+}
+.loan-progress-track {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+.loan-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e8a020, #10c98f);
+  border-radius: 99px;
+  transition: width 1s ease;
+}
+.loan-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+.loan-meta-item {
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+}
+.lmi-label {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #4a5568;
+  margin-bottom: 3px;
+}
+.lmi-value {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #e2e8f2;
+}
+.loan-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}
+.lbtn {
+  padding: 0.55rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s;
+}
+.lbtn:hover { transform: translateY(-1px); opacity: 0.9; }
+.lbtn-gold { background: #e8a020; color: #000; }
+.lbtn-outline { background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.08); }
+
+/* ── TIMELINE ── */
+.timeline-card {
+  background: var(--panel);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  animation: fadeUp 0.5s 0.4s ease forwards;
+  opacity: 0;
+}
+.card-title-mono {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #4a5568;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.tl-step {
+  display: flex;
+  gap: 1rem;
+  position: relative;
+}
+.tl-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 32px;
+  flex-shrink: 0;
+}
+.tl-dot {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.08);
+  background: var(--panel-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem;
+  color: #4a5568;
+  flex-shrink: 0;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+.tl-dot.done {
+  background: #10c98f;
+  border-color: #10c98f;
+  color: #000;
+  box-shadow: 0 0 12px rgba(16,201,143,0.3);
+}
+.tl-dot.current {
+  background: #e8a020;
+  border-color: #e8a020;
+  color: #000;
+  box-shadow: 0 0 12px rgba(232,160,32,0.4);
+  animation: pulse 2s infinite;
+}
+.tl-line {
+  width: 2px;
+  flex: 1;
+  min-height: 24px;
+  background: rgba(255,255,255,0.05);
+  margin: 2px 0;
+}
+.tl-line.done { background: #10c98f; }
+.tl-content {
+  padding: 0 0 1.25rem 0;
+  flex: 1;
+}
+.tl-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e2e8f2;
+  margin-bottom: 2px;
+}
+.tl-title.done { color: #10c98f; }
+.tl-title.current { color: #e8a020; }
+.tl-title.pending { color: #4a5568; }
+.tl-sub { font-size: 0.72rem; color: #4a5568; }
+
+/* ── LOAN HISTORY TABLE ── */
+.history-card {
+  background: var(--panel);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 20px;
+  overflow: hidden;
+  animation: fadeUp 0.5s 0.5s ease forwards;
+  opacity: 0;
+}
+.history-table { width: 100%; border-collapse: collapse; }
+.history-table th {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #4a5568;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  text-align: left;
+}
+.history-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.83rem;
+  vertical-align: middle;
+}
+.history-table tr:last-child td { border: none; }
+.history-table tr:hover td { background: rgba(255,255,255,0.02); }
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.2rem 0.65rem;
+  border-radius: 99px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.sp-funded   { background: rgba(74,144,226,0.1);  color: #4a90e2;  border: 1px solid rgba(74,144,226,0.2); }
+.sp-approved { background: rgba(16,201,143,0.1); color: #10c98f; border: 1px solid rgba(16,201,143,0.2); }
+.sp-pending  { background: rgba(232,160,32,0.1);  color: #e8a020;  border: 1px solid rgba(232,160,32,0.2); }
+.sp-rejected { background: rgba(240,80,96,0.1);   color: #f05060;  border: 1px solid rgba(240,80,96,0.2); }
+.sp-review   { background: rgba(148,163,184,0.08); color: #94a3b8; border: 1px solid rgba(148,163,184,0.15); }
+
+/* ── RIGHT COLUMN ── */
+.wallet-card {
+  background: linear-gradient(135deg, #1a1200 0%, var(--panel) 60%);
+  border: 1px solid rgba(232,160,32,0.25);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  animation: fadeUp 0.5s 0.3s ease forwards;
+  opacity: 0;
+  position: relative;
+  overflow: hidden;
+}
+.wallet-card::before {
+  content: '💳';
+  position: absolute;
+  right: -10px; top: -10px;
+  font-size: 5rem;
+  opacity: 0.06;
+}
+.wallet-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #e8a020;
+  margin-bottom: 0.5rem;
+}
+.wallet-amount {
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.04em;
+  margin-bottom: 0.25rem;
+}
+.wallet-sub { font-size: 0.75rem; color: #4a5568; margin-bottom: 1.25rem; }
+
+/* ── TRUST TIER ── */
+.tier-card {
+  background: var(--panel);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  animation: fadeUp 0.5s 0.4s ease forwards;
+  opacity: 0;
+}
+.tier-badge-big {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 0.35rem;
+}
+.tier-NEW { color: #94a3b8; }
+.tier-BRONZE { color: #cd7f32; }
+.tier-SILVER { color: #c0c0c0; }
+.tier-GOLD { color: #e8a020; }
+.tier-PLATINUM { color: #67e8f9; }
+.tier-track {
+  height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 0.75rem 0 0.5rem;
+}
+.tier-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #cd7f32, #e8a020, #67e8f9);
+  transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 0%;
+}
+.tier-labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── NOTIFICATIONS ── */
+.notif-card {
+  background: var(--panel);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 20px;
+  overflow: hidden;
+  animation: fadeUp 0.5s 0.5s ease forwards;
+  opacity: 0;
+}
+.notif-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.notif-item:last-child { border: none; }
+.notif-item:hover { background: rgba(255,255,255,0.02); }
+.notif-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+.notif-dot.unread { background: #e8a020; box-shadow: 0 0 6px #e8a020; }
+.notif-dot.read { background: rgba(255,255,255,0.1); }
+.notif-title { font-size: 0.82rem; font-weight: 600; color: #e2e8f2; margin-bottom: 2px; }
+.notif-time { font-size: 0.68rem; color: #4a5568; font-family: 'DM Mono', monospace; }
+
+/* ── QUICK APPLY ── */
+.quick-apply {
+  background: linear-gradient(135deg, #0d1a0d 0%, var(--panel) 100%);
+  border: 1px solid rgba(16,201,143,0.2);
+  border-radius: 20px;
+  padding: 1.5rem;
+  text-align: center;
+  animation: fadeUp 0.5s 0.6s ease forwards;
+  opacity: 0;
+}
+.qa-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 0.35rem;
+}
+.qa-sub { font-size: 0.78rem; color: #4a5568; margin-bottom: 1rem; }
+.qa-btn {
+  display: block;
+  background: #10c98f;
+  color: #000;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.65rem 1.5rem;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.qa-btn:hover { background: #0db880; color: #000; transform: translateY(-2px); }
+
+/* ── ANIMATION ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container my-5">
-    
-    <!-- Page Header -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5">
-        <div>
-            <h1 class="h2 fw-bold" style="font-family: 'Playfair Display', serif; color: #f1f5f9;">
-                My Loans Dashboard
-            </h1>
-            <p class="text-muted">Track your applications and manage repayments.</p>
+<div class="dash">
+
+  <!-- Greeting -->
+  <div class="dash-greet">
+    <div class="dash-greet-name">
+      Good {% now "H" as hour %}{% if hour < "12" %}morning{% elif hour < "17" %}afternoon{% else %}evening{% endif %},
+      <span>{{ request.user.first_name|default:request.user.username }}</span> 👋
+    </div>
+    <div class="dash-greet-sub">{% now "l, d F Y" %} · PrimeLend AI Dashboard</div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat-card gold">
+      <span class="stat-icon">💰</span>
+      <div class="stat-value">KES {{ wallet_balance|floatformat:0 }}</div>
+      <div class="stat-label">Wallet Balance</div>
+    </div>
+    <div class="stat-card blue">
+      <span class="stat-icon">📋</span>
+      <div class="stat-value">{{ loans|length }}</div>
+      <div class="stat-label">Total Applications</div>
+    </div>
+    <div class="stat-card green">
+      <span class="stat-icon">✅</span>
+      <div class="stat-value">{{ total_repaid }}</div>
+      <div class="stat-label">Fully Repaid</div>
+    </div>
+    <div class="stat-card {% if pending_count > 0 %}gold{% else %}blue{% endif %}">
+      <span class="stat-icon">⏳</span>
+      <div class="stat-value">{{ pending_count }}</div>
+      <div class="stat-label">Pending Review</div>
+    </div>
+  </div>
+
+  <div class="dash-grid">
+    <!-- LEFT COLUMN -->
+    <div>
+
+      <!-- Active Loan -->
+      {% if active_loan %}
+      <div class="active-loan-card">
+        <div class="loan-card-tag">Active Loan #{{ active_loan.id }}</div>
+        <div class="loan-amount">KES {{ active_loan.qualified_amount|floatformat:0 }}</div>
+        <div class="loan-sub">{{ active_loan.interest_rate|floatformat:0 }}% interest · {{ active_loan.repayment_period }} months</div>
+
+        {% if active_loan.qualified_amount and active_loan.amount_remaining %}
+        {% widthratio active_loan.amount_remaining active_loan.qualified_amount 100 as pct_remaining %}
+        {% widthratio active_loan.amount_remaining active_loan.qualified_amount 100 as pct_bar %}
+        <div style="font-size:0.72rem;color:#4a5568;margin-bottom:0.35rem;display:flex;justify-content:space-between;">
+          <span>Repayment Progress</span>
+          <span style="color:#e8a020;">KES {{ active_loan.amount_remaining|floatformat:0 }} remaining</span>
         </div>
-        <div>
-            <a href="{% url 'loan_apply' %}" class="btn btn-primary rounded-pill px-4 shadow-sm hover-lift">
-                <i class="bi bi-plus-circle me-2"></i> Apply for New Loan
-            </a>
+        <div class="loan-progress-track">
+          <div class="loan-progress-fill" style="width:{{ pct_bar }}%;" id="loanProgress"></div>
         </div>
+        {% endif %}
+
+        <div class="loan-meta-grid">
+          <div class="loan-meta-item">
+            <div class="lmi-label">Principal</div>
+            <div class="lmi-value">KES {{ active_loan.qualified_amount|floatformat:0 }}</div>
+          </div>
+          <div class="loan-meta-item">
+            <div class="lmi-label">Outstanding</div>
+            <div class="lmi-value" style="color:#e8a020;">KES {{ active_loan.amount_remaining|floatformat:0 }}</div>
+          </div>
+          <div class="loan-meta-item">
+            <div class="lmi-label">Rate</div>
+            <div class="lmi-value">{{ active_loan.interest_rate|floatformat:0 }}%</div>
+          </div>
+        </div>
+
+        <div class="loan-actions">
+          <a href="{% url 'wallet_dashboard' %}" class="lbtn lbtn-gold">
+            <i class="bi bi-wallet2"></i> Repay Now
+          </a>
+          <a href="{% url 'repayment_schedule' active_loan.id %}" class="lbtn lbtn-outline">
+            <i class="bi bi-calendar3"></i> Schedule
+          </a>
+          <a href="{% url 'loan_statement' active_loan.id %}" class="lbtn lbtn-outline">
+            <i class="bi bi-file-earmark-pdf"></i> Statement
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Loan Status Timeline -->
+      {% if latest_loan %}
+      <div class="timeline-card">
+        <div class="card-title-mono">
+          Loan #{{ latest_loan.id }} Status Timeline
+        </div>
+        <div class="timeline">
+          {% for step_name, step_icon, step_done in timeline_steps %}
+          {% with forloop.counter as idx %}
+          {% with forloop.last as is_last %}
+          <div class="tl-step">
+            <div class="tl-left">
+              <div class="tl-dot {% if step_done %}done{% endif %}">
+                {% if step_done %}<i class="bi bi-check-lg"></i>{% else %}<i class="bi {{ step_icon }}"></i>{% endif %}
+              </div>
+              {% if not is_last %}<div class="tl-line {% if step_done %}done{% endif %}"></div>{% endif %}
+            </div>
+            <div class="tl-content">
+              <div class="tl-title {% if step_done %}done{% elif forloop.first %}current{% else %}pending{% endif %}">
+                {{ step_name }}
+              </div>
+              <div class="tl-sub">
+                {% if step_done %}Completed{% else %}Pending{% endif %}
+              </div>
+            </div>
+          </div>
+          {% endwith %}
+          {% endwith %}
+          {% endfor %}
+        </div>
+
+        {% if latest_loan.status == "Approved" and not latest_loan.terms_accepted %}
+        <a href="{% url 'loan_result' latest_loan.id %}" style="display:block;margin-top:1rem;text-align:center;background:rgba(232,160,32,0.12);color:#e8a020;border:1px solid rgba(232,160,32,0.2);border-radius:8px;padding:0.6rem;font-size:0.82rem;font-weight:600;text-decoration:none;">
+          → Accept Terms to Continue
+        </a>
+        {% elif latest_loan.status == "Approved" and latest_loan.terms_accepted %}
+        <a href="{% url 'loan_result' latest_loan.id %}" style="display:block;margin-top:1rem;text-align:center;background:rgba(232,160,32,0.12);color:#e8a020;border:1px solid rgba(232,160,32,0.2);border-radius:8px;padding:0.6rem;font-size:0.82rem;font-weight:600;text-decoration:none;">
+          → Pay Processing Fee
+        </a>
+        {% elif latest_loan.status == "Pending" or latest_loan.status == "Pending KYC" %}
+        <div style="margin-top:1rem;text-align:center;background:rgba(232,160,32,0.06);border:1px solid rgba(232,160,32,0.15);border-radius:8px;padding:0.6rem;font-size:0.78rem;color:#94a3b8;">
+          ⏳ Under review — we'll notify you within 24 hours
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Loan History -->
+      <div class="history-card">
+        <div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">
+          <div class="card-title-mono" style="margin:0;padding:0;border:none;">Application History</div>
+          <a href="{% url 'loan_apply' %}" style="font-size:0.75rem;color:#e8a020;text-decoration:none;font-weight:600;">+ New Application</a>
+        </div>
+        {% if loans %}
+        <div style="overflow-x:auto;">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Loan ID</th>
+                <th>Amount</th>
+                <th>Applied</th>
+                <th>Status</th>
+                <th style="text-align:right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for loan in loans %}
+              <tr>
+                <td>
+                  <span style="font-family:'DM Mono',monospace;color:#94a3b8;font-size:0.78rem;">#{{ loan.id }}</span>
+                </td>
+                <td>
+                  <span style="font-weight:600;color:#fff;">KES {{ loan.qualified_amount|floatformat:0 }}</span>
+                </td>
+                <td style="font-size:0.78rem;color:#4a5568;">{{ loan.created_at|date:"d M Y" }}</td>
+                <td>
+                  <span class="status-pill
+                    {% if loan.status == 'Funded' %}sp-funded
+                    {% elif loan.status == 'Approved' %}sp-approved
+                    {% elif loan.status == 'Rejected' %}sp-rejected
+                    {% elif loan.status == 'Pending' or loan.status == 'Pending KYC' %}sp-pending
+                    {% else %}sp-review{% endif %}">
+                    {{ loan.status }}
+                  </span>
+                </td>
+                <td style="text-align:right;">
+                  <a href="{% url 'loan_result' loan.id %}" style="color:#e8a020;font-size:0.75rem;text-decoration:none;font-weight:600;">View →</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:3rem;color:#4a5568;">
+          <div style="font-size:2.5rem;margin-bottom:0.75rem;">📋</div>
+          <div style="font-size:0.88rem;">No loan applications yet.</div>
+          <a href="{% url 'loan_apply' %}" style="display:inline-block;margin-top:1rem;background:#e8a020;color:#000;padding:0.55rem 1.5rem;border-radius:8px;font-weight:700;text-decoration:none;font-size:0.82rem;">Apply Now →</a>
+        </div>
+        {% endif %}
+      </div>
+
     </div>
 
-    <!-- Filter Card -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body py-3">
-            <form method="get" class="row g-3 align-items-center">
-                <div class="col-auto">
-                    <label for="status" class="form-label text-muted mb-0 fw-semibold small text-uppercase">
-                        Filter Status
-                    </label>
-                </div>
-                <div class="col-md-4">
-                    <select name="status" id="status" class="form-select bg-white border">
-                        <option value="">All Statuses</option>
-                        <option value="Pending" {% if status_filter == "Pending" %}selected{% endif %}>Pending</option>
-                        <option value="Approved" {% if status_filter == "Approved" %}selected{% endif %}>Approved</option>
-                        <option value="Funded" {% if status_filter == "Funded" %}selected{% endif %}>Funded</option>
-                        <option value="Rejected" {% if status_filter == "Rejected" %}selected{% endif %}>Rejected</option>
-                    </select>
-                </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-dark px-4 rounded-pill">
-                        <i class="bi bi-funnel me-1"></i> Filter
-                    </button>
-                </div>
-            </form>
+    <!-- RIGHT COLUMN -->
+    <div>
+
+      <!-- Wallet -->
+      <div class="wallet-card">
+        <div class="wallet-label">💳 PrimeLend Wallet</div>
+        <div class="wallet-amount">KES {{ wallet_balance|floatformat:2 }}</div>
+        <div class="wallet-sub">Available balance</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+          <a href="{% url 'wallet_dashboard' %}" class="lbtn lbtn-gold" style="justify-content:center;">
+            <i class="bi bi-wallet2"></i> Wallet
+          </a>
+          <a href="{% url 'transaction_history' %}" class="lbtn lbtn-outline" style="justify-content:center;">
+            <i class="bi bi-clock-history"></i> History
+          </a>
         </div>
+      </div>
+
+      <!-- Trust Tier -->
+      <div class="tier-card">
+        <div class="card-title-mono">Trust Tier</div>
+        <div class="tier-badge-big tier-{{ trust_tier }}">
+          {% if trust_tier == "NEW" %}🆕
+          {% elif trust_tier == "BRONZE" %}🥉
+          {% elif trust_tier == "SILVER" %}🥈
+          {% elif trust_tier == "GOLD" %}🥇
+          {% else %}💎{% endif %}
+          {{ trust_tier }}
+        </div>
+        <div style="font-size:0.75rem;color:#4a5568;margin-bottom:0.5rem;">
+          Max loan: KES {{ tier_max|floatformat:0 }}
+        </div>
+        <div class="tier-track">
+          <div class="tier-fill" id="tierFill" data-pct="{{ tier_progress_pct }}"></div>
+        </div>
+        <div class="tier-labels">
+          <span>NEW</span><span>BRONZE</span><span>SILVER</span><span>GOLD</span><span>PLT</span>
+        </div>
+        <div style="margin-top:0.75rem;font-size:0.72rem;color:#4a5568;line-height:1.5;">
+          Repay on time to unlock higher tiers and better rates.
+        </div>
+      </div>
+
+      <!-- Notifications -->
+      {% if notifications %}
+      <div class="notif-card">
+        <div style="padding:0.85rem 1.25rem;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">
+          <div class="card-title-mono" style="margin:0;padding:0;border:none;">Recent Notifications</div>
+          <a href="{% url 'notifications' %}" style="font-size:0.7rem;color:#e8a020;text-decoration:none;">View all →</a>
+        </div>
+        {% for notif in notifications %}
+        <a href="{% url 'notif_redirect' notif.id %}" class="notif-item">
+          <div class="notif-dot {% if not notif.is_read %}unread{% else %}read{% endif %}"></div>
+          <div>
+            <div class="notif-title">{{ notif.title }}</div>
+            <div class="notif-time">{{ notif.created_at|timesince }} ago</div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Quick Apply -->
+      {% if not active_loan %}
+      <div class="quick-apply">
+        <div class="qa-title">Need funds fast?</div>
+        <div class="qa-sub">Get an AI-powered loan decision in under 2 minutes.</div>
+        <a href="{% url 'loan_apply' %}" class="qa-btn">
+          <i class="bi bi-lightning-fill me-1"></i> Apply Now
+        </a>
+      </div>
+      {% endif %}
+
     </div>
-
-    <!-- Loans Table Card -->
-    <div class="card border-0 shadow-sm overflow-hidden">
-        <div class="card-header bg-white py-3 border-bottom">
-            <h5 class="mb-0 fw-bold">Application History</h5>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="" style="background:#111827">
-                    <tr>
-                        <th class="ps-4 text-muted small text-uppercase border-0">Loan ID</th>
-                        <th class="text-muted small text-uppercase border-0">Amount</th>
-                        <th class="text-muted small text-uppercase border-0">Date Applied</th>
-                        <th class="text-muted small text-uppercase border-0">Status</th>
-                        <th class="text-muted small text-uppercase border-0 text-end pe-4">Actions</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {% for loan in loans %}
-                    <tr>
-                        <td class="ps-4">
-                            <span class="fw-bold text-dark">#LN-{{ loan.id }}</span>
-                        </td>
-                        <td>
-                            <span class="fw-semibold">{{ loan.qualified_amount }}</span>
-                        </td>
-                        <td class="text-muted">
-                            {{ loan.created_at|date:"M d, Y" }} <br>
-                            <small class="text-muted" style="font-size: 0.75rem;">{{ loan.created_at|date:"h:i A" }}</small>
-                        </td>
-
-                        <td>
-                            {% if loan.status == "Pending" %}
-                                <span class="badge rounded-pill px-3 py-2" style="background-color: #fffbeb; color: #d97706;">
-                                    <i class="bi bi-clock-history me-1"></i> Pending
-                                </span>
-                            {% elif loan.status == "Approved" %}
-                                <span class="badge rounded-pill px-3 py-2" style="background-color: #ecfdf5; color: #059669;">
-                                    <i class="bi bi-check-circle me-1"></i> Approved
-                                </span>
-                            {% elif loan.status == "Funded" %}
-                                <span class="badge rounded-pill px-3 py-2" style="background-color: #eff6ff; color: #2563eb;">
-                                    <i class="bi bi-wallet2 me-1"></i> Funded
-                                </span>
-                            {% elif loan.status == "Rejected" %}
-                                <span class="badge rounded-pill px-3 py-2" style="background-color: #fef2f2; color: #dc2626;">
-                                    <i class="bi bi-x-circle me-1"></i> Rejected
-                                </span>
-                            {% else %}
-                                <span class="badge bg-secondary rounded-pill px-3 py-2">{{ loan.status }}</span>
-                            {% endif %}
-                        </td>
-
-                        <td class="text-end pe-4">
-                            <a href="{% url 'loan_detail' loan.id %}"
-                               class="btn btn-sm btn-outline-dark rounded-pill px-3 me-1 hover-lift">
-                                <i class="bi bi-eye me-1"></i> View
-                            </a>
-
-                            {% if loan.status == "Approved" and not loan.processing_fee_paid %}
-                                <a href="{% url 'pay_processing_fee' loan.id %}"
-                                   class="btn btn-sm btn-primary rounded-pill px-3 hover-lift">
-                                    Pay Fee
-                                </a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center py-6">
-                            <div class="py-5">
-                                <i class="bi bi-folder2-open display-4 text-muted mb-3 d-block"></i>
-                                <h5 class="text-light">No Loans Found</h5>
-                                <p class="text-muted small">You haven't applied for any loans yet, or none match your filter.</p>
-                                <a href="{% url 'loan_apply' %}" class="btn btn-primary rounded-pill mt-2 px-4">Start Application</a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+  </div>
 </div>
 
-<style>
-    /* Hover Effect for Rows */
-    .table-hover tbody tr:hover {
-        background-color: rgba(217, 119, 6, 0.05); /* Light Gold Hover */
-    }
-    
-    /* Button Hover Lift */
-    .hover-lift {
-        transition: transform 0.2s ease;
-    }
-    .hover-lift:hover {
-        transform: translateY(-1px);
-    }
-</style>
+<script>
+// Animate tier progress bar
+window.addEventListener('load', () => {
+  const fill = document.getElementById('tierFill');
+  if (fill) {
+    setTimeout(() => {
+      fill.style.width = fill.dataset.pct + '%';
+    }, 400);
+  }
+});
+</script>
 {% endblock %}

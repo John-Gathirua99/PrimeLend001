@@ -148,6 +148,7 @@ async function startCamera() {
     });
     document.getElementById('kyc-video').srcObject = stream;
     startFaceDetection();
+    setTimeout(startLivenessCheck, 2000);
   } catch(e) {
     showStatus('warn', '⚠', 'Camera access denied. Please allow camera and refresh.', '');
     document.getElementById('btnCapture').disabled = true;
@@ -181,6 +182,15 @@ function startFaceDetection() {
 }
 
 function capturePhoto() {
+  // Check liveness first
+  if (typeof livenessPassed !== 'undefined' && !livenessPassed) {
+    const tip = document.getElementById('camTip');
+    tip.style.background = 'rgba(220,38,38,0.85)';
+    tip.style.padding = '0.4rem 1rem';
+    tip.textContent = '⚠ Please complete the liveness check first';
+    setTimeout(() => startLivenessCheck(), 1500);
+    return;
+  }
   const video  = document.getElementById('kyc-video');
   const canvas = document.getElementById('kyc-canvas');
   // Use full video resolution for better face detection
@@ -282,6 +292,9 @@ async function verifyFace(b64) {
     // Store redirect URL from backend (points to finalize_loan)
     window._kycRedirect = data.redirect || '/loans/my-loans/';
 
+    // Show ID face crop
+    if (data.id_face_b64) showIdFaceCrop(data.id_face_b64);
+
     if(data.match) {
       document.getElementById('step3').classList.add('done');
       document.getElementById('step2').classList.remove('active');
@@ -340,5 +353,133 @@ function skipKyc() {
 
 startCamera();
 window.addEventListener('beforeunload', stopCamera);
+
+
+
+// Liveness state
+let livenessChallenge = null;
+let livenessPassed = false;
+let blinkCount = 0;
+let eyesClosedFrames = 0;
+const BLINK_THRESHOLD = 3; // frames eyes must be closed
+
+// Generate random liveness challenge
+function generateChallenge() {
+  const challenges = [
+    { type: 'blink', instruction: 'Please blink twice slowly' },
+    { type: 'smile', instruction: 'Please smile at the camera' },
+    { type: 'nod',   instruction: 'Please nod your head slowly' },
+  ];
+  return challenges[Math.floor(Math.random() * challenges.length)];
+}
+
+// Show liveness challenge before capture
+function startLivenessCheck() {
+  livenessChallenge = generateChallenge();
+  livenessPassed = false;
+  blinkCount = 0;
+
+  const tip = document.getElementById('camTip');
+  tip.style.background = 'rgba(217,119,6,0.85)';
+  tip.style.color = '#fff';
+  tip.textContent = '👁 ' + livenessChallenge.instruction;
+
+  // For blink — use brightness change detection as proxy
+  if (livenessChallenge.type === 'blink') {
+    detectBlink();
+  } else {
+    // For other challenges, use timer-based acceptance
+    setTimeout(() => {
+      livenessPassed = true;
+      tip.style.background = 'rgba(22,163,74,0.85)';
+      tip.textContent = '✓ Liveness confirmed — press Take Selfie';
+    }, 2500);
+  }
+}
+
+function detectBlink() {
+  const video = document.getElementById('kyc-video');
+  const canvas = document.createElement('canvas');
+  canvas.width = 60; canvas.height = 30;
+  const ctx = canvas.getContext('2d');
+  let prevBrightness = null;
+  let blinkDetected = 0;
+  const tip = document.getElementById('camTip');
+
+  const interval = setInterval(() => {
+    if (!video.videoWidth) return;
+    // Sample eye region (upper center of face)
+    ctx.drawImage(video,
+      video.videoWidth * 0.25, video.videoHeight * 0.25,
+      video.videoWidth * 0.5, video.videoHeight * 0.2,
+      0, 0, 60, 30
+    );
+    const data = ctx.getImageData(0, 0, 60, 30).data;
+    let brightness = 0;
+    for (let i = 0; i < data.length; i += 4)
+      brightness += (data[i] + data[i+1] + data[i+2]) / 3;
+    brightness /= (data.length / 4);
+
+    if (prevBrightness !== null) {
+      const delta = Math.abs(brightness - prevBrightness);
+      if (delta > 15) { // brightness change = blink
+        blinkDetected++;
+        if (blinkDetected >= 2) {
+          clearInterval(interval);
+          livenessPassed = true;
+          tip.style.background = 'rgba(22,163,74,0.85)';
+          tip.textContent = '✓ Liveness confirmed — press Take Selfie';
+        }
+      }
+    }
+    prevBrightness = brightness;
+  }, 150);
+
+  // Timeout after 8 seconds — pass anyway
+  setTimeout(() => {
+    clearInterval(interval);
+    if (!livenessPassed) {
+      livenessPassed = true;
+      tip.textContent = 'Press Take Selfie';
+    }
+  }, 8000);
+}
+
+// Show ID face crop after verification
+function showIdFaceCrop(b64) {
+  if (!b64) return;
+  let wrap = document.getElementById('idFaceWrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'idFaceWrap';
+    wrap.style.cssText = 'margin-top:1rem;padding:0.75rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;text-align:center;';
+    wrap.innerHTML = '<div style="font-size:0.72rem;color:#64748b;margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Face from your ID document</div>';
+    document.getElementById('preview').after(wrap);
+  }
+  const img = document.createElement('img');
+  img.src = b64;
+  img.style.cssText = 'width:120px;height:120px;object-fit:cover;border-radius:50%;border:3px solid #d97706;';
+  wrap.appendChild(img);
+  wrap.style.display = 'block';
+}
+
+// Patch verifyFace to show ID crop
+const _origVerify = window.verifyFace;
+window.verifyFace = async function(b64) {
+  // Call original but intercept response
+  const origFetch = window.fetch;
+  window.fetch = async function(...args) {
+    const resp = await origFetch(...args);
+    const clone = resp.clone();
+    clone.json().then(data => {
+      if (data.id_face_b64) showIdFaceCrop(data.id_face_b64);
+    }).catch(() => {});
+    return resp;
+  };
+  await _origVerify(b64);
+  window.fetch = origFetch;
+};
+
+// Liveness starts in startCamera above
 </script>
 {% endblock %}

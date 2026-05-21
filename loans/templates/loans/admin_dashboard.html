@@ -371,14 +371,37 @@
     </button>
     <button class="adm-tab" onclick="showTab('all',this)">All Loans</button>
     <button class="adm-tab" onclick="showTab('system',this)">⚙ System</button>
+    <a href="{% url 'admin_user_list' %}" class="adm-tab" style="text-decoration:none;">👥 Users</a>
+    <a href="{% url 'admin_export_loans' %}?status=all" class="adm-tab" style="text-decoration:none;">⬇ Export</a>
+    <a href="{% url 'admin_system_settings' %}" class="adm-tab" style="text-decoration:none;">⚙ Settings</a>
   </div>
 
   <!-- ── PENDING ── -->
   <div class="adm-panel active" id="tab-pending">
     <div class="section-hdr">Loans awaiting review — {{ stats.pending }} application(s)</div>
+
+    <!-- Bulk Actions Bar -->
+    <div id="bulkBar" style="display:none;background:rgba(232,160,32,0.08);border:1px solid rgba(232,160,32,0.2);border-radius:10px;padding:0.75rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+      <span style="font-family:'DM Mono',monospace;font-size:0.7rem;color:#e8a020;" id="selectedCount">0 selected</span>
+      <form method="POST" action="{% url 'admin_bulk_action' %}" id="bulkForm" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        {% csrf_token %}
+        <div id="bulkCheckboxes"></div>
+        <input type="hidden" name="action" id="bulkAction">
+        <input type="text" name="bulk_reason" placeholder="Rejection reason (for bulk reject)…" style="background:rgba(0,0,0,0.2);border:1px solid rgba(232,160,32,0.3);border-radius:6px;padding:0.35rem 0.75rem;color:#fff;font-size:0.78rem;outline:none;min-width:220px;" id="bulkReason">
+        <button type="button" onclick="submitBulk('bulk_approve')" style="background:rgba(16,201,143,0.15);color:#10c98f;border:1px solid rgba(16,201,143,0.3);border-radius:6px;padding:0.35rem 0.85rem;font-size:0.75rem;font-weight:600;cursor:pointer;">✓ Approve Selected</button>
+        <button type="button" onclick="submitBulk('bulk_reject')" style="background:rgba(240,80,96,0.12);color:#f05060;border:1px solid rgba(240,80,96,0.25);border-radius:6px;padding:0.35rem 0.85rem;font-size:0.75rem;font-weight:600;cursor:pointer;">✕ Reject Selected</button>
+        <button type="button" onclick="submitBulk('bulk_flag')" style="background:rgba(74,144,226,0.1);color:#4a90e2;border:1px solid rgba(74,144,226,0.2);border-radius:6px;padding:0.35rem 0.85rem;font-size:0.75rem;font-weight:600;cursor:pointer;">⚑ Flag Selected</button>
+        <button type="button" onclick="submitBulk('bulk_delete')" style="background:rgba(240,80,96,0.06);color:#f05060;border:1px solid rgba(240,80,96,0.15);border-radius:6px;padding:0.35rem 0.85rem;font-size:0.75rem;font-weight:600;cursor:pointer;" onclick="return confirm('Delete permanently?')">🗑 Delete Selected</button>
+      </form>
+      <label style="font-size:0.72rem;color:#94a3b8;display:flex;align-items:center;gap:0.4rem;cursor:pointer;margin-left:auto;">
+        <input type="checkbox" id="selectAll" onchange="toggleAll(this)"> Select All
+      </label>
+    </div>
+
     {% if pending %}
       {% for loan in pending %}
-      <div class="loan-row" onclick="window.location='{% url "admin_loan_detail" loan.id %}'" style="cursor:pointer;">
+      <div class="loan-row" style="cursor:pointer;" onclick="if(event.target.type!='checkbox')window.location='{% url "admin_loan_detail" loan.id %}'">
+        <input type="checkbox" name="loan_ids" value="{{ loan.id }}" class="loan-check" onclick="event.stopPropagation()" style="position:absolute;margin:0.5rem;">
         <div class="loan-row-top">
           <div>
             <div class="loan-applicant">{{ loan.full_name }}</div>
@@ -631,26 +654,46 @@
   <!-- ── FUNDED / ACTIVE ── -->
   <div class="adm-panel" id="tab-funded">
     <div class="section-hdr">Active loans — currently funded</div>
-    {% if funded %}
-      {% for loan in funded %}
+    {% if funded_with_risk %}
+      {% for item in funded_with_risk %}
+      {% with loan=item.loan %}
       <div class="loan-row">
         <div class="loan-row-top">
           <div>
             <div class="loan-applicant">{{ loan.full_name }}</div>
             <div class="loan-meta" onclick="window.location='{% url "admin_loan_detail" loan.id %}'" style="cursor:pointer;">#{{ loan.id }} · funded {{ loan.funded_at|timesince }} ago — <span style="color:#d97706;">click to review</span></div>
           </div>
-          <span class="pill pill-funded">💸 Active</span>
+          <div style="display:flex;gap:0.5rem;align-items:center;">
+            <span class="pill" style="background:{% if item.default_risk == 'LOW' %}rgba(16,185,129,0.12){% elif item.default_risk == 'MEDIUM' %}rgba(245,158,11,0.12){% elif item.default_risk == 'HIGH' %}rgba(239,68,68,0.12){% else %}rgba(239,68,68,0.2){% endif %};color:{% if item.default_risk == 'LOW' %}var(--green){% elif item.default_risk == 'MEDIUM' %}var(--gold){% else %}var(--red){% endif %};">
+              🎯 {{ item.default_risk }} RISK
+            </span>
+            <span class="pill pill-funded">💸 Active</span>
+          </div>
         </div>
         <div class="loan-grid">
           <div class="loan-cell"><div class="cell-lbl">Principal</div><div class="cell-val">KES {{ loan.qualified_amount|floatformat:0 }}</div></div>
           <div class="loan-cell"><div class="cell-lbl">Outstanding</div><div class="cell-val">KES {{ loan.amount_remaining|floatformat:0 }}</div></div>
           <div class="loan-cell"><div class="cell-lbl">Period</div><div class="cell-val">{{ loan.repayment_period }}mo</div></div>
-          <div class="loan-cell"><div class="cell-lbl">Repaid</div><div class="cell-val">{% if loan.fully_repaid %}Yes ✓{% else %}No{% endif %}</div></div>
+          <div class="loan-cell"><div class="cell-lbl">Default Prob</div><div class="cell-val" style="color:{% if item.default_prob < 25 %}var(--green){% elif item.default_prob < 50 %}var(--gold){% else %}var(--red){% endif %};">{{ item.default_prob }}%</div></div>
         </div>
-        <div class="action-strip" onclick="event.stopPropagation()">
+        {% if item.recommendation %}
+        <div style="font-size:0.75rem;color:var(--dim);margin:0.25rem 0 0.5rem;padding:0.4rem 0.6rem;background:rgba(255,255,255,0.03);border-radius:6px;">
+          🤖 {{ item.recommendation }}
+        </div>
+        {% endif %}
+        <div class="mini-bar-row">
+          <span style="width:75px;">Default risk</span>
+          <div class="mini-track">
+            <div class="mini-fill" style="width:{{ item.default_prob }}%;background:{% if item.default_prob < 25 %}var(--green){% elif item.default_prob < 50 %}var(--gold){% else %}var(--red){% endif %};"></div>
+          </div>
+          <span>{{ item.default_prob }}%</span>
+        </div>
+        <div class="action-strip">
           <a href="{% url 'repayment_schedule' loan.id %}" class="adm-btn btn-view">View Schedule</a>
+          <a href="{% url 'admin_loan_detail' loan.id %}" class="adm-btn btn-info">Full Detail</a>
         </div>
       </div>
+      {% endwith %}
       {% endfor %}
     {% else %}
       <div class="empty-state"><div class="icon">📊</div>No active loans.</div>
@@ -804,5 +847,63 @@ function toggleForm(id) {
   const el = document.getElementById(id);
   el.classList.toggle('open');
 }
+
+// ── Bulk Actions ──
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.loan-check:checked');
+  const bar = document.getElementById('bulkBar');
+  const count = document.getElementById('selectedCount');
+  if (checked.length > 0) {
+    bar.style.display = 'flex';
+    count.textContent = checked.length + ' selected';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function toggleAll(cb) {
+  document.querySelectorAll('.loan-check').forEach(c => c.checked = cb.checked);
+  updateBulkBar();
+}
+
+function submitBulk(action) {
+  const checked = document.querySelectorAll('.loan-check:checked');
+  if (checked.length === 0) { alert('No loans selected.'); return; }
+  if (action === 'bulk_delete' && !confirm('Delete ' + checked.length + ' loans permanently?')) return;
+  if (action === 'bulk_reject') {
+    const reason = document.getElementById('bulkReason').value.trim();
+    if (!reason) { alert('Please enter a rejection reason.'); return; }
+  }
+  document.getElementById('bulkAction').value = action;
+  const container = document.getElementById('bulkCheckboxes');
+  container.innerHTML = '';
+  checked.forEach(cb => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'loan_ids'; inp.value = cb.value;
+    container.appendChild(inp);
+  });
+  document.getElementById('bulkForm').submit();
+}
+
+document.addEventListener('change', function(e) {
+  if (e.target.classList.contains('loan-check')) updateBulkBar();
+});
 </script>
 {% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

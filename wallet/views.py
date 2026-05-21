@@ -133,8 +133,18 @@ def repay_loan(request, loan_id):
 @login_required
 @db_transaction.atomic
 def withdraw_to_mpesa(request):
-    messages.info(request, "Withdrawals are currently being processed manually. Contact support to withdraw funds.")
-    return redirect("wallet_dashboard")
+    """
+    Handle wallet withdrawals via M-Pesa B2C.
+    """
+    if request.method != "POST":
+        return redirect("wallet_dashboard")
+
+    amount_str = request.POST.get("amount", "0")
+    try:
+        amount = Decimal(amount_str)
+    except Exception:
+        messages.error(request, "Invalid amount.")
+        return redirect("wallet_dashboard")
 
     # Try both common profile accessors
     phone = None
@@ -164,14 +174,28 @@ def withdraw_to_mpesa(request):
         return redirect("wallet_dashboard")
 
     wallet = Wallet.objects.select_for_update().get(user=request.user)
+    system_wallet = SystemWallet.objects.select_for_update().first()
+
+    if not system_wallet:
+        messages.error(request, "System withdrawal system is currently offline.")
+        return redirect("wallet_dashboard")
 
     if wallet.balance < amount:
         messages.error(request, "Insufficient wallet balance.")
         return redirect("wallet_dashboard")
 
+    if not system_wallet.can_fund(amount):
+        messages.error(request, "The system is unable to process this withdrawal amount at the moment.")
+        return redirect("wallet_dashboard")
+
+    # Perform deductions
     wallet_before = wallet.balance
     wallet.balance -= amount
     wallet.save()
+
+    sys_before = system_wallet.balance
+    system_wallet.balance -= amount
+    system_wallet.save()
 
     txn = WalletTransaction.objects.create(
         wallet=wallet,
@@ -182,6 +206,16 @@ def withdraw_to_mpesa(request):
         balance_after=wallet.balance,
         status="Pending",
         description="Withdrawal to M-Pesa",
+    )
+
+    # Record system transaction
+    SystemTransaction.objects.create(
+        system_wallet=system_wallet,
+        user=request.user,
+        transaction_type="WITHDRAWAL",
+        amount=amount,
+        balance_before=sys_before,
+        balance_after=system_wallet.balance,
     )
 
     # Trigger M-Pesa B2C
@@ -198,12 +232,31 @@ def withdraw_to_mpesa(request):
         messages.success(request, "Withdrawal initiated. M-Pesa will process shortly.")
     except Exception as e:
         logger.error(f"B2C payment failed for user {request.user.id}: {e}")
+        
+        # Extract Safaricom error message if possible
+        safaricom_msg = ""
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                error_data = e.response.json()
+                safaricom_msg = error_data.get("errorMessage", error_data.get("ResultDesc", ""))
+            except: pass
+
         # Reverse the deduction
         wallet.balance += amount
         wallet.save()
+        
+        system_wallet.balance += amount
+        system_wallet.save()
+
         txn.status = "Failed"
         txn.save(update_fields=["status"])
-        messages.error(request, "Withdrawal failed. Your balance has been restored.")
+        
+        if safaricom_msg:
+            messages.error(request, f"Withdrawal failed: {safaricom_msg}")
+        elif "400" in str(e) or "401" in str(e):
+            messages.error(request, "Withdrawal failed: M-Pesa credentials error. Check Initiator/Security settings.")
+        else:
+            messages.error(request, "Withdrawal failed. Your balance has been restored.")
 
     return redirect("wallet_dashboard")
 

@@ -19,7 +19,9 @@ class UserProfile(models.Model):
     id_document = models.FileField(upload_to='ids/', null=True, blank=True)
     is_id_verified = models.BooleanField(default=False)
     is_phone_verified = models.BooleanField(default=False)
-    otp_code = models.CharField(max_length=6, blank=True, null=True)
+    otp_code       = models.CharField(max_length=6, blank=True, null=True)
+    otp_created_at = models.DateTimeField(null=True, blank=True)   # OTP expiry (10 min)
+    otp_attempts   = models.PositiveSmallIntegerField(default=0)    # brute-force counter
 
     face_embedding    = models.TextField(null=True, blank=True)
     face_kyc_verified = models.BooleanField(default=False)

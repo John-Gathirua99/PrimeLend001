@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Apply — PrimeLend AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#050810;
+  --surface:#0d1220;
+  --panel:#131929;
+  --border:rgba(255,255,255,0.06);
+  --gold:#f0b429;
+  --green:#00e5a0;
+  --red:#ff4d6d;
+  --blue:#4f9cf9;
+  --text:#e8edf5;
+  --muted:#5a6480;
+  --dim:#3a4160;
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── HERO ── */
+.hero{
+  position:relative;
+  padding:5rem 2rem 4rem;
+  text-align:center;
+  overflow:hidden;
+}
+.hero::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(240,180,41,0.08) 0%, transparent 70%);
+  pointer-events:none;
+}
+.hero-eyebrow{
+  font-family:'DM Mono',monospace;
+  font-size:0.7rem;
+  letter-spacing:0.25em;
+  text-transform:uppercase;
+  color:var(--gold);
+  margin-bottom:1.5rem;
+  opacity:0;
+  animation:fadeUp 0.6s 0.2s forwards;
+}
+.hero-title{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(3.5rem,10vw,7rem);
+  line-height:0.92;
+  letter-spacing:0.02em;
+  color:#fff;
+  margin-bottom:1.5rem;
+  opacity:0;
+  animation:fadeUp 0.6s 0.35s forwards;
+}
+.hero-title span{color:var(--gold);}
+.hero-sub{
+  font-size:1.05rem;
+  color:var(--muted);
+  max-width:480px;
+  margin:0 auto 2.5rem;
+  line-height:1.7;
+  opacity:0;
+  animation:fadeUp 0.6s 0.5s forwards;
+}
+.hero-pills{
+  display:flex;
+  gap:0.6rem;
+  justify-content:center;
+  flex-wrap:wrap;
+  opacity:0;
+  animation:fadeUp 0.6s 0.65s forwards;
+}
+.pill{
+  padding:0.35rem 0.9rem;
+  border-radius:99px;
+  font-size:0.75rem;
+  font-weight:600;
+  letter-spacing:0.04em;
+}
+.pill-gold{background:rgba(240,180,41,0.12);color:var(--gold);border:1px solid rgba(240,180,41,0.25);}
+.pill-green{background:rgba(0,229,160,0.1);color:var(--green);border:1px solid rgba(0,229,160,0.2);}
+.pill-blue{background:rgba(79,156,249,0.1);color:var(--blue);border:1px solid rgba(79,156,249,0.2);}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap{
+  position:sticky;
+  top:0;
+  z-index:100;
+  background:rgba(5,8,16,0.85);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:0.75rem 2rem;
+}
+.progress-inner{
+  max-width:900px;
+  margin:0 auto;
+  display:flex;
+  align-items:center;
+  gap:1rem;
+}
+.progress-track{
+  flex:1;
+  height:3px;
+  background:var(--dim);
+  border-radius:99px;
+  overflow:hidden;
+}
+.progress-fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--gold),var(--green));
+  border-radius:99px;
+  transition:width 0.5s ease;
+  width:0%;
+}
+.progress-label{
+  font-family:'DM Mono',monospace;
+  font-size:0.68rem;
+  color:var(--muted);
+  white-space:nowrap;
+}
+
+/* ── STEPS ── */
+.steps{
+  max-width:900px;
+  margin:0 auto;
+  padding:3rem 2rem 6rem;
+}
+
+.step{
+  display:grid;
+  grid-template-columns:80px 1fr;
+  gap:2rem;
+  margin-bottom:1rem;
+  opacity:0;
+  transform:translateY(30px);
+  transition:opacity 0.6s ease, transform 0.6s ease;
+}
+.step.visible{opacity:1;transform:translateY(0);}
+
+.step-left{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:0;
+}
+.step-num{
+  width:52px;
+  height:52px;
+  border-radius:50%;
+  background:var(--panel);
+  border:2px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.4rem;
+  color:var(--muted);
+  flex-shrink:0;
+  transition:all 0.4s ease;
+  position:relative;
+  z-index:1;
+}
+.step.active .step-num{
+  background:var(--gold);
+  border-color:var(--gold);
+  color:#000;
+  box-shadow:0 0 0 6px rgba(240,180,41,0.15);
+}
+.step.done .step-num{
+  background:var(--green);
+  border-color:var(--green);
+  color:#000;
+}
+.step-line{
+  width:2px;
+  flex:1;
+  min-height:40px;
+  background:var(--dim);
+  margin-top:0;
+  transition:background 0.4s ease;
+}
+.step.done .step-line{background:var(--green);}
+.step:last-child .step-line{display:none;}
+
+.step-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:2rem;
+  margin-bottom:1rem;
+  transition:border-color 0.4s ease, box-shadow 0.4s ease;
+  cursor:pointer;
+}
+.step.active .step-card{
+  border-color:rgba(240,180,41,0.3);
+  box-shadow:0 8px 40px rgba(240,180,41,0.08);
+}
+.step.done .step-card{
+  border-color:rgba(0,229,160,0.2);
+}
+
+.step-tag{
+  font-family:'DM Mono',monospace;
+  font-size:0.62rem;
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:0.6rem;
+}
+.step.active .step-tag{color:var(--gold);}
+.step.done .step-tag{color:var(--green);}
+
+.step-title{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.8rem;
+  letter-spacing:0.03em;
+  color:#fff;
+  margin-bottom:0.75rem;
+  line-height:1;
+}
+.step-desc{
+  font-size:0.88rem;
+  color:var(--muted);
+  line-height:1.7;
+  margin-bottom:1.25rem;
+}
+
+.step-details{
+  display:none;
+  animation:fadeIn 0.3s ease;
+}
+.step.active .step-details{display:block;}
+
+.checklist{list-style:none;padding:0;}
+.checklist li{
+  display:flex;
+  align-items:flex-start;
+  gap:0.75rem;
+  padding:0.55rem 0;
+  border-bottom:1px solid var(--border);
+  font-size:0.85rem;
+  color:var(--text);
+}
+.checklist li:last-child{border:none;}
+.checklist li::before{
+  content:'';
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:rgba(240,180,41,0.12);
+  border:1.5px solid rgba(240,180,41,0.3);
+  flex-shrink:0;
+  margin-top:2px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:0.6rem;
+  color:var(--gold);
+}
+.checklist li.done-item::before{
+  background:rgba(0,229,160,0.12);
+  border-color:rgba(0,229,160,0.3);
+  content:'✓';
+  color:var(--green);
+  font-size:0.65rem;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.tip-box{
+  background:rgba(79,156,249,0.06);
+  border:1px solid rgba(79,156,249,0.15);
+  border-radius:12px;
+  padding:0.9rem 1.1rem;
+  margin-top:1rem;
+  font-size:0.82rem;
+  color:#a8c8f8;
+  display:flex;
+  gap:0.6rem;
+  align-items:flex-start;
+}
+.tip-icon{font-size:1rem;flex-shrink:0;margin-top:1px;}
+
+.warn-box{
+  background:rgba(255,77,109,0.06);
+  border:1px solid rgba(255,77,109,0.15);
+  border-radius:12px;
+  padding:0.9rem 1.1rem;
+  margin-top:0.75rem;
+  font-size:0.82rem;
+  color:#ffb3c1;
+  display:flex;
+  gap:0.6rem;
+  align-items:flex-start;
+}
+
+.step-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:0.5rem;
+  margin-top:1.25rem;
+  padding:0.65rem 1.5rem;
+  background:var(--gold);
+  color:#000;
+  border:none;
+  border-radius:99px;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.85rem;
+  font-weight:700;
+  cursor:pointer;
+  transition:opacity 0.2s, transform 0.15s;
+}
+.step-btn:hover{opacity:0.85;transform:translateY(-2px);}
+.step-btn.done-btn{background:var(--green);}
+
+/* ── VISUAL MOCKUP ── */
+.mockup{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:1.25rem;
+  margin-top:1.25rem;
+  font-size:0.8rem;
+}
+.mockup-title{
+  font-family:'DM Mono',monospace;
+  font-size:0.6rem;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:0.75rem;
+}
+.mockup-field{
+  background:var(--panel);
+  border:1px solid var(--dim);
+  border-radius:8px;
+  padding:0.55rem 0.8rem;
+  margin-bottom:0.5rem;
+  color:var(--muted);
+  font-size:0.8rem;
+}
+.mockup-field.filled{
+  border-color:rgba(0,229,160,0.3);
+  color:var(--text);
+}
+.mockup-field.active-field{
+  border-color:var(--gold);
+  color:var(--text);
+  box-shadow:0 0 0 3px rgba(240,180,41,0.1);
+}
+.mockup-row{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;}
+.mockup-btn{
+  background:var(--gold);
+  color:#000;
+  border:none;
+  border-radius:8px;
+  padding:0.6rem 1.2rem;
+  font-weight:700;
+  font-size:0.82rem;
+  margin-top:0.5rem;
+  cursor:default;
+}
+
+/* ── DONE STATE ── */
+.done-banner{
+  background:linear-gradient(135deg,rgba(0,229,160,0.08),rgba(240,180,41,0.05));
+  border:1px solid rgba(0,229,160,0.2);
+  border-radius:20px;
+  padding:3rem 2rem;
+  text-align:center;
+  margin-top:2rem;
+  display:none;
+  animation:fadeUp 0.5s forwards;
+}
+.done-banner.show{display:block;}
+.done-icon{font-size:3.5rem;margin-bottom:1rem;}
+.done-title{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:2.5rem;
+  color:var(--green);
+  margin-bottom:0.5rem;
+}
+.done-sub{color:var(--muted);font-size:0.9rem;line-height:1.6;}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;transform:translateY(0);}
+}
+@keyframes fadeIn{
+  from{opacity:0;}
+  to{opacity:1;}
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  .step{grid-template-columns:50px 1fr;gap:1rem;}
+  .step-num{width:40px;height:40px;font-size:1.1rem;}
+  .step-title{font-size:1.4rem;}
+  .hero-title{font-size:3rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">PrimeLend AI — User Guide</div>
+  <h1 class="hero-title">How to Get<br><span>Your Loan</span></h1>
+  <p class="hero-sub">Follow these 6 simple steps to apply for a loan and receive funds in your wallet within minutes.</p>
+  <div class="hero-pills">
+    <span class="pill pill-gold">⚡ AI-Powered Decision</span>
+    <span class="pill pill-green">🔒 Secure KYC</span>
+    <span class="pill pill-blue">📱 M-Pesa Payment</span>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div class="progress-wrap">
+  <div class="progress-inner">
+    <span class="progress-label" id="progressLabel">Step 0 of 6</span>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <span class="progress-label" id="progressPct">0%</span>
+  </div>
+</div>
+
+<!-- STEPS -->
+<div class="steps" id="stepsWrap">
+
+  <!-- STEP 1 -->
+  <div class="step" id="step1" onclick="activateStep(1)">
+    <div class="step-left">
+      <div class="step-num">1</div>
+      <div class="step-line"></div>
+    </div>
+    <div>
+      <div class="step-card">
+        <div class="step-tag">Step 01 — Account</div>
+        <div class="step-title">Create Your Account</div>
+        <div class="step-desc">Register with your name, email and a secure password. You'll receive a verification OTP to confirm your email.</div>
+        <div class="step-details">
+          <ul class="checklist">
+            <li>Go to <strong>primelend.onrender.com</strong> and click <strong>Register</strong></li>
+            <li>Enter your <strong>full name</strong> as it appears on your National ID</li>
+            <li>Provide a valid <strong>email address</strong> — you'll receive OTP codes here</li>
+            <li>Create a <strong>strong password</strong> (8+ characters)</li>
+            <li>Check your email for the <strong>OTP code</strong> and enter it to verify</li>
+            <li>Complete your <strong>profile</strong> — add phone number and employment details</li>
+          </ul>
+          <div class="tip-box">
+            <span class="tip-icon">💡</span>
+            <span>Use your real name exactly as it appears on your Kenyan National ID. This helps with automatic identity verification later.</span>
+          </div>
+          <div class="mockup">
+            <div class="mockup-title">Registration Form Preview</div>
+            <div class="mockup-row">
+              <div class="mockup-field active-field">John Gathirua</div>
+              <div class="mockup-field filled">john@email.com</div>
+            </div>
+            <div class="mockup-field filled">••••••••</div>
+            <button class="mockup-btn">Create Account →</button>
+          </div>
+          <button class="step-btn" onclick="markDone(1,event)">✓ Done — Next Step</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" id="step2" onclick="activateStep(2)">
+    <div class="step-left">
+      <div class="step-num">2</div>
+      <div class="step-line"></div>
+    </div>
+    <div>
+      <div class="step-card">
+        <div class="step-tag">Step 02 — Application</div>
+        <div class="step-title">Fill Loan Application</div>
+        <div class="step-desc">Provide your personal and financial details. Our AI will use this to calculate how much you qualify for.</div>
+        <div class="step-details">
+          <ul class="checklist">
+            <li>Click <strong>Apply for Loan</strong> from your dashboard</li>
+            <li>Enter your <strong>age</strong> and <strong>National ID number</strong></li>
+            <li>Select your <strong>employment status</strong> (Employed, Self-employed, Business, etc.)</li>
+            <li>Enter your <strong>monthly income</strong> in KES — be accurate for best results</li>
+            <li>Choose your preferred <strong>repayment period</strong> (1–36 months)</li>
+            <li>Select your <strong>credit history</strong> rating</li>
+            <li>Write a clear <strong>reason for the loan</strong></li>
+            <li>Upload a <strong>clear flat photo</strong> of your National ID (front and back)</li>
+          </ul>
+          <div class="warn-box">
+            <span class="tip-icon">⚠️</span>
+            <span><strong>Important:</strong> Place your ID flat on a dark surface with good lighting. Do NOT hold the ID in your hand — this causes verification failure.</span>
+          </div>
+          <div class="tip-box">
+            <span class="tip-icon">📸</span>
+            <span>ID photo tips: All 4 corners visible · No glare · Good lighting · High resolution · Flat surface</span>
+          </div>
+          <div class="mockup">
+            <div class="mockup-title">Application Form</div>
+            <div class="mockup-row">
+              <div class="mockup-field filled">Age: 28</div>
+              <div class="mockup-field filled">ID: 41292983</div>
+            </div>
+            <div class="mockup-row">
+              <div class="mockup-field filled">Employed</div>
+              <div class="mockup-field active-field">KES 45,000/mo</div>
+            </div>
+            <div class="mockup-field filled">12 Months</div>
+            <div class="mockup-field active-field">📎 ID_front.jpg ✓</div>
+            <button class="mockup-btn">Submit Application →</button>
+          </div>
+          <button class="step-btn" onclick="markDone(2,event)">✓ Done — Next Step</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step" id="step3" onclick="activateStep(3)">
+    <div class="step-left">
+      <div class="step-num">3</div>
+      <div class="step-line"></div>
+    </div>
+    <div>
+      <div class="step-card">
+        <div class="step-tag">Step 03 — Identity</div>
+        <div class="step-title">Complete Face KYC</div>
+        <div class="step-desc">Take a live selfie so our AI can verify your face matches the photo on your ID document. This keeps your account secure.</div>
+        <div class="step-details">
+          <ul class="checklist">
+            <li>Allow <strong>camera access</strong> when prompted by your browser</li>
+            <li>Wait for the <strong>liveness challenge</strong> to appear (e.g. "Blink twice slowly")</li>
+            <li>Complete the challenge — this proves you are a <strong>live person</strong></li>
+            <li>Once the circle turns <strong>green</strong>, press <strong>Take Selfie</strong></li>
+            <li>Look directly at the camera — <strong>no sunglasses</strong>, good lighting</li>
+            <li>Wait for the AI to compare your face with your ID (30–60 seconds)</li>
+            <li>If verified ✅ — proceed. If failed ❌ — retake in better lighting</li>
+          </ul>
+          <div class="warn-box">
+            <span class="tip-icon">🚫</span>
+            <span>Do NOT submit a photo of a wall, another person, or a printed photo. The system will detect and reject it.</span>
+          </div>
+          <div class="tip-box">
+            <span class="tip-icon">💡</span>
+            <span>Best selfie conditions: Face directly in the oval guide · Even natural light from front · No backlighting · Remove glasses if possible</span>
+          </div>
+          <button class="step-btn" onclick="markDone(3,event)">✓ Done — Next Step</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step" id="step4" onclick="activateStep(4)">
+    <div class="step-left">
+      <div class="step-num">4</div>
+      <div class="step-line"></div>
+    </div>
+    <div>
+      <div class="step-card">
+        <div class="step-tag">Step 04 — Decision</div>
+        <div class="step-title">Get AI Decision</div>
+        <div class="step-desc">Our AI model analyzes your application and gives an instant credit decision — approved, under review, or rejected.</div>
+        <div class="step-details">
+          <ul class="checklist">
+            <li>After KYC, you are redirected to your <strong>loan result page</strong></li>
+            <li><strong>Approved ✓</strong> — you qualify! Proceed to accept terms</li>
+            <li><strong>Under Review</strong> — admin will verify manually within 24 hours</li>
+            <li><strong>Rejected ✗</strong> — reapply after improving your credit profile</li>
+            <li>Check your <strong>qualified amount</strong> — may differ from requested amount</li>
+            <li>Review the <strong>interest rate</strong> assigned based on your credit score</li>
+          </ul>
+          <div class="tip-box">
+            <span class="tip-icon">📊</span>
+            <span>Your credit score improves with each on-time repayment. Higher scores unlock lower interest rates and higher loan limits.</span>
+          </div>
+          <div class="mockup">
+            <div class="mockup-title">Loan Decision Result</div>
+            <div style="background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.2);border-radius:10px;padding:1rem;text-align:center;margin-bottom:0.75rem;">
+              <div style="color:#00e5a0;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;">✓ CONGRATULATIONS — APPROVED!</div>
+              <div style="color:#5a6480;font-size:0.78rem;margin-top:0.25rem;">Your loan has been pre-approved</div>
+            </div>
+            <div class="mockup-row">
+              <div class="mockup-field filled">Amount: KES 45,000</div>
+              <div class="mockup-field filled">Rate: 13%</div>
+            </div>
+          </div>
+          <button class="step-btn" onclick="markDone(4,event)">✓ Done — Next Step</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step" id="step5" onclick="activateStep(5)">
+    <div class="step-left">
+      <div class="step-num">5</div>
+      <div class="step-line"></div>
+    </div>
+    <div>
+      <div class="step-card">
+        <div class="step-tag">Step 05 — Terms & Fee</div>
+        <div class="step-title">Accept Terms & Pay Fee</div>
+        <div class="step-desc">Read and accept the loan terms, then pay the processing fee via M-Pesa to activate your loan.</div>
+        <div class="step-details">
+          <ul class="checklist">
+            <li>Read the loan terms carefully — <strong>total repayable amount</strong>, interest, period</li>
+            <li>Check the checkbox confirming you <strong>agree to the terms</strong></li>
+            <li>Click <strong>Accept Terms & Continue</strong></li>
+            <li>You'll see the <strong>processing fee</strong> (2% of loan amount, min KES 500)</li>
+            <li>Click <strong>Pay via M-Pesa</strong> — STK push sent to your phone</li>
+            <li>Enter your <strong>M-Pesa PIN</strong> on your phone to complete payment</li>
+            <li>Wait for confirmation — your loan moves to disbursement queue</li>
+          </ul>
+          <div class="tip-box">
+            <span class="tip-icon">📱</span>
+            <span>Make sure your phone number on your profile matches your M-Pesa registered number. The STK push goes to the number on your profile.</span>
+          </div>
+          <div class="warn-box">
+            <span class="tip-icon">⚠️</span>
+            <span>Processing fee is <strong>non-refundable</strong> if you cancel after payment. Only pay when you are ready to proceed.</span>
+          </div>
+          <button class="step-btn" onclick="markDone(5,event)">✓ Done — Next Step</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step" id="step6" onclick="activateStep(6)">
+    <div class="step-left">
+      <div class="step-num">6</div>
+      <div class="step-line"></div>
+    </div>
+    <div>
+      <div class="step-card">
+        <div class="step-tag">Step 06 — Funds</div>
+        <div class="step-title">Receive & Repay</div>
+        <div class="step-desc">Funds are credited to your PrimeLend wallet. Repay on time to build your trust tier and access higher loan limits.</div>
+        <div class="step-details">
+          <ul class="checklist">
+            <li>Admin disburses funds to your <strong>PrimeLend wallet</strong></li>
+            <li>You receive an <strong>in-app notification</strong> when funds are credited</li>
+            <li>Go to <strong>My Wallet</strong> to see your balance</li>
+            <li>To repay — click <strong>Repay (Wallet)</strong> to deduct from wallet balance</li>
+            <li>Or click <strong>M-Pesa</strong> to pay directly from your phone</li>
+            <li>Repay on time to <strong>upgrade your trust tier</strong> and get better rates</li>
+            <li>Download your <strong>loan statement PDF</strong> from wallet history</li>
+          </ul>
+          <div class="tip-box">
+            <span class="tip-icon">🏆</span>
+            <span>Trust tiers: NEW → BRONZE → SILVER → GOLD → PLATINUM. Each upgrade unlocks higher loan limits (up to KES 500,000) and lower interest rates.</span>
+          </div>
+          <div class="mockup">
+            <div class="mockup-title">Your Wallet</div>
+            <div style="background:rgba(240,180,41,0.06);border:1px solid rgba(240,180,41,0.15);border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.75rem;">
+              <div style="color:#5a6480;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;">Available Balance</div>
+              <div style="color:#fff;font-size:1.6rem;font-family:'Bebas Neue',sans-serif;">KES 45,000.00</div>
+            </div>
+            <div class="mockup-row">
+              <button class="mockup-btn" style="background:var(--gold);margin:0;">Repay (Wallet)</button>
+              <button class="mockup-btn" style="background:var(--green);color:#000;margin:0;">📱 M-Pesa</button>
+            </div>
+          </div>
+          <button class="step-btn done-btn" onclick="markDone(6,event)">🎉 All Done!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DONE BANNER -->
+  <div class="done-banner" id="doneBanner">
+    <div class="done-icon">🎉</div>
+    <div class="done-title">You're Ready to Apply!</div>
+    <p class="done-sub">You've completed the full loan application guide.<br>Head to PrimeLend AI and apply for your loan now.</p>
+    <br>
+    <a href="/loans/apply/" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.75rem 2rem;background:var(--gold);color:#000;border-radius:99px;font-weight:700;text-decoration:none;font-size:0.9rem;margin-top:0.5rem;">
+      Apply Now →
+    </a>
+  </div>
+
+</div>
+
+<script>
+let currentStep = 0;
+let completedSteps = new Set();
+const totalSteps = 6;
+
+function updateProgress() {
+  const pct = Math.round((completedSteps.size / totalSteps) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressLabel').textContent = 
+    `Step ${completedSteps.size} of ${totalSteps}`;
+}
+
+function activateStep(n) {
+  // Deactivate current
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  // Activate clicked
+  const el = document.getElementById('step' + n);
+  el.classList.add('active');
+  currentStep = n;
+  // Scroll into view
+  setTimeout(() => {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+function markDone(n, e) {
+  e.stopPropagation();
+  completedSteps.add(n);
+  const el = document.getElementById('step' + n);
+  el.classList.remove('active');
+  el.classList.add('done', 'visible');
+  // Mark checklist items as done
+  el.querySelectorAll('.checklist li').forEach(li => li.classList.add('done-item'));
+  updateProgress();
+  // Auto-advance
+  if (n < totalSteps) {
+    setTimeout(() => activateStep(n + 1), 400);
+  } else {
+    document.getElementById('doneBanner').classList.add('show');
+    document.getElementById('doneBanner').scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+// Intersection Observer for scroll animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.step').forEach(step => observer.observe(step));
+
+// Auto-activate first step
+setTimeout(() => activateStep(1), 800);
+</script>
+</body>
+</html>

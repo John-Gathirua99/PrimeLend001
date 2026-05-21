@@ -6,7 +6,7 @@
     
     <!-- LEFT SIDE: Visual / Branding (Hidden on Mobile) -->
     <div class="d-none d-md-flex col-md-5 col-lg-6 position-relative" 
-         style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+         style="background: linear-gradient(135deg, var(--ink) 0%, var(--surface) 100%); border-right: 1px solid var(--border);">
         
         <!-- Decorative Image Overlay -->
         <div class="position-absolute top-0 start-0 w-100 h-100" 
@@ -15,7 +15,7 @@
 
         <div class="container position-relative z-1 d-flex flex-column justify-content-center text-white p-5">
             <div class="mb-5">
-                <h1 class="display-5 fw-bold" style="font-family: 'Playfair Display', serif;">
+                <h1 class="display-5 fw-bold text-white">
                     Start Your Journey
                 </h1>
                 <p class="lead text-white-50">
@@ -52,17 +52,17 @@
     </div>
 
     <!-- RIGHT SIDE: Registration Form -->
-    <div class="col-12 col-md-7 col-lg-6 d-flex align-items-center justify-content-center bg-white" style="overflow-y: auto;">
+    <div class="col-12 col-md-7 col-lg-6 d-flex align-items-center justify-content-center" style="background: var(--ink); overflow-y: auto;">
         <div class="w-100 py-5" style="max-width: 450px; padding: 2rem;">
             
             <!-- Logo for mobile view -->
             <div class="text-center mb-4 d-md-none">
-                <h2 class="fw-bold" style="font-family: 'Playfair Display', serif; color: var(--primary-navy);">
-                    PrimeLend<span style="color: var(--accent-gold);">AI</span>
+                <h2 class="fw-bold text-white">
+                    PrimeLend<span style="color: var(--gold);">AI</span>
                 </h2>
             </div>
 
-            <h2 class="h3 fw-bold mb-2" style="color: var(--primary-navy);">Create Account</h2>
+            <h2 class="h3 fw-bold mb-2 text-white">Create Account</h2>
             <p class="text-muted mb-5">Fill in your details to get started.</p>
 
             {% if messages %}
@@ -80,10 +80,10 @@
                 <div class="mb-3">
                     <label class="form-label small text-uppercase text-muted fw-bold">Username</label>
                     <div class="input-group input-group-merge">
-                        <span class="input-group-text border-end-0 bg-white">
+                        <span class="input-group-text border-end-0" style="background: var(--panel-2); border-color: var(--border-2);">
                             <i class="bi bi-person text-muted"></i>
                         </span>
-                        <input type="text" name="username" class="form-control border-start-0 ps-0" placeholder="Choose a username" required>
+                        <input type="text" name="username" class="form-control border-start-0 ps-0" style="background: var(--panel-2); border-color: var(--border-2); color: var(--text);" placeholder="Choose a username" required>
                     </div>
                 </div>
 
@@ -91,10 +91,10 @@
                 <div class="mb-3">
                     <label class="form-label small text-uppercase text-muted fw-bold">Email Address</label>
                     <div class="input-group input-group-merge">
-                        <span class="input-group-text border-end-0 bg-white">
+                        <span class="input-group-text border-end-0" style="background: var(--panel-2); border-color: var(--border-2);">
                             <i class="bi bi-envelope text-muted"></i>
                         </span>
-                        <input type="email" name="email" class="form-control border-start-0 ps-0" placeholder="name@company.com" required>
+                        <input type="email" name="email" class="form-control border-start-0 ps-0" style="background: var(--panel-2); border-color: var(--border-2); color: var(--text);" placeholder="name@company.com" required>
                     </div>
                 </div>
 
@@ -102,10 +102,10 @@
                 <div class="mb-3">
                     <label class="form-label small text-uppercase text-muted fw-bold">Phone Number</label>
                     <div class="input-group input-group-merge">
-                        <span class="input-group-text border-end-0 bg-white">
+                        <span class="input-group-text border-end-0" style="background: var(--panel-2); border-color: var(--border-2);">
                             <i class="bi bi-telephone text-muted"></i>
                         </span>
-                        <input type="tel" name="phone" class="form-control border-start-0 ps-0" placeholder="2547XXXXXXXX" required>
+                        <input type="tel" name="phone" class="form-control border-start-0 ps-0" style="background: var(--panel-2); border-color: var(--border-2); color: var(--text);" placeholder="2547XXXXXXXX" required>
                     </div>
                     <small class="text-muted">Format: 254712345678</small>
                 </div>
@@ -114,10 +114,13 @@
                 <div class="mb-3">
                     <label class="form-label small text-uppercase text-muted fw-bold">Password</label>
                     <div class="input-group input-group-merge">
-                        <span class="input-group-text border-end-0 bg-white">
+                        <span class="input-group-text border-end-0" style="background: var(--panel-2); border-color: var(--border-2);">
                             <i class="bi bi-lock text-muted"></i>
                         </span>
-                        <input type="password" name="password1" class="form-control border-start-0 ps-0" placeholder="Create a password" required>
+                        <input type="password" id="password1" name="password1" class="form-control border-start-0 border-end-0 ps-0" style="background: var(--panel-2); border-color: var(--border-2); color: var(--text);" placeholder="Create a password" required>
+                        <button class="input-group-text border-start-0 toggle-pw" type="button" data-target="password1" style="background: var(--panel-2); border-color: var(--border-2); cursor:pointer;">
+                            <i class="bi bi-eye text-muted"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -125,10 +128,13 @@
                 <div class="mb-4">
                     <label class="form-label small text-uppercase text-muted fw-bold">Confirm Password</label>
                     <div class="input-group input-group-merge">
-                        <span class="input-group-text border-end-0 bg-white">
+                        <span class="input-group-text border-end-0" style="background: var(--panel-2); border-color: var(--border-2);">
                             <i class="bi bi-shield-lock text-muted"></i>
                         </span>
-                        <input type="password" name="password2" class="form-control border-start-0 ps-0" placeholder="Repeat password" required>
+                        <input type="password" id="password2" name="password2" class="form-control border-start-0 border-end-0 ps-0" style="background: var(--panel-2); border-color: var(--border-2); color: var(--text);" placeholder="Repeat password" required>
+                        <button class="input-group-text border-start-0 toggle-pw" type="button" data-target="password2" style="background: var(--panel-2); border-color: var(--border-2); cursor:pointer;">
+                            <i class="bi bi-eye text-muted"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -136,7 +142,7 @@
                 <div class="mb-4 form-check">
                     <input type="checkbox" class="form-check-input" id="terms" required>
                     <label class="form-check-label small text-muted" for="terms">
-                        I agree to the <a href="#" class="text-dark">Terms of Service</a> and <a href="#" class="text-dark">Privacy Policy</a>.
+                        I agree to the <a href="#" class="text-white">Terms of Service</a> and <a href="#" class="text-white">Privacy Policy</a>.
                     </label>
                 </div>
 
@@ -150,7 +156,7 @@
             <!-- Divider -->
             <div class="position-relative my-4">
                 <hr class="bg-secondary bg-opacity-25">
-                <span class="position-absolute top-50 start-50 translate-middle bg-white px-3 text-muted small">
+                <span class="position-absolute top-50 start-50 translate-middle px-3 text-muted small" style="background: var(--ink);">
                     or
                 </span>
             </div>
@@ -159,7 +165,7 @@
             <div class="text-center">
                 <p class="text-muted mb-0">
                     Already have an account? 
-                    <a href="{% url 'login' %}" class="fw-bold text-decoration-none" style="color: var(--primary-navy);">
+                    <a href="{% url 'login' %}" class="fw-bold text-decoration-none text-white">
                         Sign In
                     </a>
                 </p>
@@ -169,10 +175,27 @@
     </div>
 </div>
 
+<script>
+    // ── Toggle password visibility ────────────────────────────
+    document.querySelectorAll('.toggle-pw').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = document.getElementById(btn.dataset.target);
+            const icon  = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('bi-eye', 'bi-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('bi-eye-slash', 'bi-eye');
+            }
+        });
+    });
+</script>
+
 <style>
     /* Override body background for this specific page */
     .login-wrapper {
-        background-color: #fff;
+        background-color: var(--ink);
     }
     
     /* Input merge styling */

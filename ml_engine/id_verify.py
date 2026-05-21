@@ -1,5 +1,6 @@
 """
 ml_engine/id_verify.py - Kenyan National ID verification via OCR
+with Groq LLM and Gemini Vision fallbacks
 """
 
 import re
@@ -50,27 +51,79 @@ def _preprocess(img):
     import cv2
     import numpy as np
     h, w = img.shape[:2]
-    # Upscale to at least 2000px wide
-    if w < 2000:
-        scale = 2000 / w
+    # Optimal OCR height is around 1000-1500px for a card
+    if w < 1500:
+        scale = 1500 / w
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # Denoise
+    
+    # 1. Background Pattern Filtering (Kenyan ID Specialist)
+    # Convert to HSV to isolate the dark text from the pink/blue background
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    # Filter out common ID background colors (pinkish/blueish/yellowish patterns)
+    # We want to keep dark/black pixels
+    lower_black = np.array([0, 0, 0])
+    upper_black = np.array([180, 255, 110]) # Adjust V to capture dark text only
+    mask = cv2.inRange(hsv, lower_black, upper_black)
+    
+    # 2. Refine the mask
+    kernel_clean = np.ones((2,2), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_clean)
+    
+    # Use the mask to get black text on white background
+    res = cv2.bitwise_not(mask)
+
+    # 3. Standard enhancements on the masked result
     try:
-        gray = cv2.fastNlMeansDenoising(gray, h=10)
+        res = cv2.fastNlMeansDenoising(res, h=10)
     except Exception:
         pass
-    # CLAHE contrast enhancement
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-    gray = clahe.apply(gray)
-    # Sharpen instead of threshold — preserves text better
-    kernel = __import__('numpy').array([[0,-1,0],[-1,5,-1],[0,-1,0]])
-    gray = cv2.filter2D(gray, -1, kernel)
-    return gray
+    
+    return res
+
+
+def _extract_spatial_fields(img):
+    """
+    Use image_to_data to find 'SURNAME', 'GIVEN NAMES', etc. 
+    and identify text in adjacent boxes.
+    """
+    import pytesseract
+    import pandas as pd
+    from io import StringIO
+    
+    # Get detailed OCR data with coordinates
+    data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DATAFRAME)
+    # Filter out empty or low confidence results
+    data = data[data.conf > 20]
+    
+    fields = {"id_number": None, "surname": None, "given_names": None}
+    
+    # Look for ID Number (often right of 'ID' or 'NUMBER' or 'NAMBA')
+    # Or look for long numeric strings
+    for i, row in data.iterrows():
+        text = str(row['text']).upper()
+        if re.search(r'\b\d{7,8}\b', text):
+            fields["id_number"] = text
+            break
+
+    # Look for Surname (usually word below 'SURNAME')
+    surname_labels = data[data.text.str.contains("SURNAME|JINA", case=False, na=False)]
+    if not surname_labels.empty:
+        label_row = surname_labels.iloc[0]
+        # Look for words in a similar X range but slightly lower Y
+        candidates = data[
+            (data.left >= label_row.left - 50) & 
+            (data.left <= label_row.left + 200) &
+            (data.top > label_row.top + 10) &
+            (data.top < label_row.top + 100)
+        ]
+        if not candidates.empty:
+            fields["surname"] = " ".join(candidates.text.astype(str))
+
+    return fields
 
 
 def _score_text(text):
-    """Score OCR result - higher = more ID-like."""
+    """Score OCR text - higher means more ID-like content."""
     score = 0
     keywords = [
         "KENYA", "REPUBLIC", "NATIONAL", "IDENTITY", "MALE", "FEMALE",
@@ -87,29 +140,11 @@ def _score_text(text):
     return score
 
 
-def _score_text(text):
-    """Score OCR text - higher means more ID-like content."""
-    score = 0
-    keywords = [
-        "KENYA", "REPUBLIC", "NATIONAL", "IDENTITY", "MALE", "FEMALE",
-        "SURNAME", "GIVEN", "NAMBA", "DATE", "BIRTH", "EXPIRY",
-        "MUNICIPALITY", "KITAMBULISHO", "JAMHURI", "MWANGI", "JOHN",
-    ]
-    upper = text.upper()
-    for kw in keywords:
-        if kw in upper:
-            score += 10
-    score += len(re.findall(r"\b\d{7,8}\b", text)) * 20
-    score += len(re.findall(r"\d{2}[./]\d{2}[./]\d{4}", text)) * 15
-    score += min(len(text), 400)
-    return score
-
-
 def extract_text_from_id(image_file) -> str:
     try:
         import cv2
     except ImportError:
-        cv2 = None  # not available in production
+        cv2 = None
     try:
         import numpy as np
     except ImportError:
@@ -118,60 +153,66 @@ def extract_text_from_id(image_file) -> str:
 
     pytesseract = _load_ocr()
 
-    image_file.seek(0)
-    img_bytes = image_file.read()
-    image_file.seek(0)
+    # Handle if already a numpy array (pre-processed)
+    if isinstance(image_file, np.ndarray):
+        orig = image_file
+    else:
+        # Assume file-like object
+        image_file.seek(0)
+        img_bytes = image_file.read()
+        image_file.seek(0)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        orig  = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    nparr = np.frombuffer(img_bytes, np.uint8)
-    orig  = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-    if orig is None:
+    if orig is None or (isinstance(orig, np.ndarray) and orig.size == 0):
         return ""
 
-    # Try all 4 rotations - pick whichever gives best OCR result
     rotations = [
         ("0deg",  orig.copy()),
         ("90cw",  cv2.rotate(orig, cv2.ROTATE_90_CLOCKWISE)),
         ("90ccw", cv2.rotate(orig, cv2.ROTATE_90_COUNTERCLOCKWISE)),
         ("180",   cv2.rotate(orig, cv2.ROTATE_180)),
+        ("hsv",   _preprocess(orig)),
     ]
 
-    configs = [
-        "--psm 6 --oem 3",
-        "--psm 4 --oem 3",
-        "--psm 11 --oem 3",
-    ]
+    configs = ["--psm 6 --oem 3", "--psm 4 --oem 3", "--psm 11 --oem 3", "--psm 3 --oem 3"]
 
-    best_text  = ""
+    best_text = ""
     best_score = -1
     best_label = "none"
 
     for rot_label, rot_img in rotations:
         try:
             h, w = rot_img.shape[:2]
-            if w > 1600:
-                rot_img = cv2.resize(rot_img, None, fx=1200/w, fy=1200/w, interpolation=cv2.INTER_AREA)
-            elif w < 800:
-                rot_img = cv2.resize(rot_img, None, fx=1100/w, fy=1100/w, interpolation=cv2.INTER_CUBIC)
+            # Resize for optimal OCR - Maisha card details are small
+            target_w = 1800 if rot_label == "hsv" else 1500
+            if w != target_w:
+                scale = target_w / w
+                rot_img = cv2.resize(rot_img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
 
-            gray      = cv2.cvtColor(rot_img, cv2.COLOR_BGR2GRAY)
-            clahe     = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-            enhanced  = clahe.apply(gray)
-            kernel    = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
-            processed = cv2.filter2D(enhanced, -1, kernel)
-            pil_img   = PILImage.fromarray(processed)
+            if rot_label == "hsv":
+                # Resized HSV mask is already "enhanced"
+                processed = rot_img
+            else:
+                gray = cv2.cvtColor(rot_img, cv2.COLOR_BGR2GRAY)
+                clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+                enhanced = clahe.apply(gray)
+                kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+                processed = cv2.filter2D(enhanced, -1, kernel)
+            
+            pil_img = PILImage.fromarray(processed)
         except Exception as e:
             logger.warning(f"[OCR] Preprocess failed for {rot_label}: {e}")
             continue
 
         for config in configs:
             try:
-                text  = pytesseract.image_to_string(pil_img, config=config, timeout=25).strip()
+                text = pytesseract.image_to_string(pil_img, config=config, timeout=25).strip()
                 score = _score_text(text)
                 logger.info(f"[OCR] {rot_label} {config[:7]} score={score} chars={len(text)}")
                 if score > best_score:
                     best_score = score
-                    best_text  = text
+                    best_text = text
                     best_label = f"{rot_label}/{config[:7]}"
             except Exception:
                 continue
@@ -179,31 +220,35 @@ def extract_text_from_id(image_file) -> str:
     logger.info(f"[OCR] Winner: {best_label} score={best_score}")
     logger.info(f"[OCR] Text:\n{best_text[:400]}")
     return best_text
+
+
 def extract_id_number(text: str) -> Optional[str]:
     cleaned = text.upper()
 
-    # Fix common OCR errors only in mostly-digit sequences
     ocr_fixes = {"O": "0", "I": "1", "S": "5", "B": "8", "G": "6", "Z": "2", "Q": "0"}
+
     def fix_ocr_digits(m):
         s = m.group()
         digit_ratio = sum(1 for ch in s if ch.isdigit()) / len(s)
         if digit_ratio >= 0.5:
             return "".join(ocr_fixes.get(ch, ch) for ch in s)
         return s
+
     cleaned = re.sub(r"[A-Z0-9]{7,9}", fix_ocr_digits, cleaned)
-    cleaned = re.sub(r"I(\d{6,7})", r"1", cleaned)
+    cleaned = re.sub(r"\bI(\d{6,7})\b", r"1\1", cleaned)
 
     patterns = [
-        r"(?:ID\s*NAMBA)[\s:\-\.]*(?P<n>\d{7,8})",
-        r"(?:NAMBA)[\s:\-\.]*(?P<n>\d{7,8})",
+        r"(?:ID\s*NAMBA|ID\s*NUMBER|ID\s*NO)[\s:\-\.]*(?P<n>\d{7,8})",
+        r"(?:NAMBA|NUMBER)[\s:\-\.]*(?P<n>\d{7,8})",
         r"(?:IDENTITY\s*(?:CARD|NO|NUMBER)?[\s:\-\.]*|ID\s*(?:NO|NUMBER|#|CARD)?[\s:\-\.]*)(?P<n>\d{7,8})",
         r"(?:SERIAL\s*(?:NO|NUMBER)?[\s:\-\.]*)(?P<n>\d{7,8})",
         r"(?:NAMBARI\s*(?:YA\s*KITAMBULISHO)?[\s:\-\.]*)(?P<n>\d{7,8})",
         r"(?:NO[\s:\-\.]+)(?P<n>\d{7,8})",
         r"(?:NUMBER[\s:\-\.]+)(?P<n>\d{7,8})",
+        r"(?P<n>[1-9]\d{6,7})",
         r"^\s*(?P<n>\d{7,8})\s*$",
-        r"(?P<n>\d{8})",
-        r"(?P<n>\d{7})",
+        r"\b(?P<n>\d{8})\b",
+        r"\b(?P<n>\d{7})\b",
         r"(?P<n>\d[\d\s]{5,9}\d)",
     ]
 
@@ -220,11 +265,6 @@ def extract_id_number(text: str) -> Optional[str]:
 
 
 def _next_line_value(text: str, label: str) -> Optional[str]:
-    """
-    Kenyan IDs put label on one line, value on next:
-      SURNAME -> MWANGI
-      GIVEN NAME -> JOHN GATHIRUA
-    """
     SKIP = {
         "REPUBLIC", "KENYA", "JAMHURI", "NATIONAL", "IDENTITY", "CARD",
         "KITAMBULISHO", "TAIFA", "MEANT", "PATA", "OF", "CHA", "YA",
@@ -257,7 +297,7 @@ def _next_line_value(text: str, label: str) -> Optional[str]:
 def extract_name(text: str) -> Optional[str]:
     upper = text.upper()
 
-    surname    = _next_line_value(upper, "SURNAME")
+    surname = _next_line_value(upper, "SURNAME")
     given_name = (
         _next_line_value(upper, "GIVEN NAME")
         or _next_line_value(upper, "GIVEN NAMES")
@@ -279,7 +319,7 @@ def extract_name(text: str) -> Optional[str]:
     for pattern in [
         r"(?:FULL\s*NAME|JINA\s*KAMILI)[\s:\-\.]+([A-Z][A-Z\s]{4,45})",
         r"(?:SURNAME)[\s:\-\.]+([A-Z][A-Z\s]{2,30})",
-        r"(?:GIVEN\s*NAMES?|OTHER\s*NAMES?)[\s:\-\.]+([A-Z][A-Z\s]{2,30})",
+        r"(?:GIVEN\s*NAMES?|OTHER\s*NAMES?|GIVEN\s*NAME)[\s:\-\.]+([A-Z][A-Z\s]{2,30})",
         r"(?:NAME|JINA)[\s:\-\.]+([A-Z][A-Z\s]{4,45})",
     ]:
         match = re.search(pattern, upper, re.IGNORECASE)
@@ -291,11 +331,11 @@ def extract_name(text: str) -> Optional[str]:
 
     SKIP_WORDS = {
         "REPUBLIC", "KENYA", "JAMHURI", "NATIONAL", "IDENTITY", "CARD",
-        "KITAMBULISHO", "TAIFA", "MALE", "FEMALE", "KEN", "SEX", "DATE",
+        "KITAMBULISHO", "TAIFA", "MALE", "FEMALE", "MEN", "WOMEN", "KEN", "SEX", "DATE",
         "BIRTH", "PLACE", "ISSUE", "EXPIRY", "MUNICIPALITY", "NATIONALITY",
         "NAMBA", "MEANT", "PATA", "OF", "CHA", "YA", "NA", "AND", "CEI",
+        "CARD", "CARO", "CENTRAL", "NYERI", "NAIROBI", "MOMBASA",
     }
-    # Heuristic: find uppercase word(s) between header and MALE/FEMALE line
     lines = [l.strip() for l in text.split("\n")]
     header_idx = -1
     gender_idx = -1
@@ -306,7 +346,7 @@ def extract_name(text: str) -> Optional[str]:
             gender_idx = i
             break
     if header_idx >= 0 and gender_idx > header_idx:
-        for line in lines[header_idx+1:gender_idx]:
+        for line in lines[header_idx + 1:gender_idx]:
             line = line.strip()
             cleaned = re.sub(r"[^A-Z\s]", "", line.upper()).strip()
             words = cleaned.split()
@@ -317,7 +357,7 @@ def extract_name(text: str) -> Optional[str]:
                 logger.info(f"[OCR] Name (between-header-gender): {cleaned}")
                 return cleaned
     for line in lines:
-        line  = line.strip()
+        line = line.strip()
         words = line.split()
         if (1 <= len(words) <= 4
                 and all(w.isalpha() and w.isupper() for w in words)
@@ -332,7 +372,6 @@ def extract_name(text: str) -> Optional[str]:
 
 def extract_dob(text: str) -> Optional[str]:
     upper = text.upper()
-
     same = re.search(
         r"(?:DATE\s*OF\s*BIRTH|D\.O\.B|DOB|BORN|TAREHE\s*YA\s*KUZALIWA)"
         r"[\s:\-\.]*(?P<d>\d{1,2}[\/\.\-]\d{1,2}[\/\.\-]\d{2,4})",
@@ -340,17 +379,14 @@ def extract_dob(text: str) -> Optional[str]:
     )
     if same:
         return same.group("d").strip()
-
     dob_line = _next_line_value(upper, "DATE OF BIRTH")
     if dob_line:
         m = re.search(r"(\d{1,2}[\/\.\-]\d{1,2}[\/\.\-]\d{2,4})", dob_line)
         if m:
             return m.group(1)
-
     anywhere = re.search(r"\b(\d{2}\.\d{2}\.\d{4})\b", upper)
     if anywhere:
         return anywhere.group(1)
-
     return None
 
 
@@ -369,13 +405,13 @@ def _normalize(text: str) -> str:
 
 
 def _names_match(name_on_id: str, account_name: str, threshold: float = 0.55) -> bool:
-    id_words   = {w for w in _normalize(name_on_id).split()   if len(w) > 1}
+    id_words = {w for w in _normalize(name_on_id).split() if len(w) > 1}
     acct_words = {w for w in _normalize(account_name).split() if len(w) > 1}
     if not id_words or not acct_words:
         return False
     overlap = id_words & acct_words
     shorter = min(len(id_words), len(acct_words))
-    ratio   = len(overlap) / shorter
+    ratio = len(overlap) / shorter
     logger.info(f"[OCR] Name match: {ratio:.2f} (need {threshold})")
     return ratio >= threshold
 
@@ -384,7 +420,7 @@ def _dob_matches_stated_age(dob_str: str, stated_age: int) -> Optional[bool]:
     import datetime
     for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%d/%m/%y", "%d-%m-%y"):
         try:
-            dob        = datetime.datetime.strptime(dob_str, fmt).date()
+            dob = datetime.datetime.strptime(dob_str, fmt).date()
             actual_age = (datetime.date.today() - dob).days // 365
             return abs(actual_age - stated_age) <= 2
         except ValueError:
@@ -398,18 +434,18 @@ def check_id_reuse(id_number: str, current_user=None) -> dict:
         from accounts.models import UserProfile
 
         masked_emails = []
-        loan_qs       = LoanApplication.objects.filter(id_number=id_number)
+        loan_qs = LoanApplication.objects.filter(id_number=id_number)
         if current_user:
             loan_qs = loan_qs.exclude(user=current_user)
 
-        count      = loan_qs.values("user").distinct().count()
+        count = loan_qs.values("user").distinct().count()
         seen_users = set()
         for app in loan_qs.select_related("user"):
             if app.user_id in seen_users:
                 continue
             seen_users.add(app.user_id)
-            email  = app.user.email
-            parts  = email.split("@")
+            email = app.user.email
+            parts = email.split("@")
             masked = (parts[0][0] + "***@" + parts[1]) if len(parts) == 2 else "***"
             masked_emails.append(masked)
 
@@ -418,8 +454,8 @@ def check_id_reuse(id_number: str, current_user=None) -> dict:
             if current_user:
                 profile_qs = profile_qs.exclude(user=current_user)
             for p in profile_qs.select_related("user"):
-                email  = p.user.email
-                parts  = email.split("@")
+                email = p.user.email
+                parts = email.split("@")
                 masked = (parts[0][0] + "***@" + parts[1]) if len(parts) == 2 else "***"
                 if masked not in masked_emails:
                     masked_emails.append(masked)
@@ -434,103 +470,84 @@ def check_id_reuse(id_number: str, current_user=None) -> dict:
         return {"reused": False, "count": 0, "masked_emails": []}
 
 
-
-
-def extract_fields_with_ai(ocr_text: str, submitted_id: str = "", account_name: str = "") -> dict:
-    """
-    Use Claude AI to extract ID fields from garbled OCR text.
-    Much more robust than regex for poor quality scans.
-    """
+def extract_fields_with_groq(ocr_text, submitted_id="", account_name=""):
+    """Use Groq LLM to interpret garbled OCR text from Kenyan ID."""
     try:
         import requests
-        prompt = f"""You are analyzing OCR text extracted from a Kenyan National Identity Card.
-The OCR may be garbled, have missing characters, or contain noise.
-
-OCR TEXT:
-{ocr_text}
-
-The user claims:
-- ID Number: {submitted_id}
-- Full Name: {account_name}
-
-Extract the following fields from the OCR text. Use context clues and the user's claimed values to help interpret garbled text.
-Return ONLY a JSON object with these exact keys:
-{{
-  "id_number": "8-digit number or null",
-  "surname": "surname or null", 
-  "given_names": "given names or null",
-  "full_name": "full name or null",
-  "date_of_birth": "DD.MM.YYYY or null",
-  "gender": "MALE or FEMALE or null",
-  "place_of_birth": "place or null",
-  "confidence": "HIGH or MEDIUM or LOW"
-}}
-
-Rules:
-- ID number is 7-8 digits, never contains letters
-- If OCR shows spaced digits like "4129 2983", join them: "41292983"  
-- Fix obvious OCR errors: O->0, I->1 in number sequences
-- Return null for fields you cannot determine with reasonable confidence
-- Do not guess or hallucinate values not present in the OCR text"""
-
-        from django.conf import settings as _settings
-        api_key = getattr(_settings, "ANTHROPIC_API_KEY", "") or os.environ.get("ANTHROPIC_API_KEY", "")
+        import json
+        import re as _re
+        from django.conf import settings
+        api_key = getattr(settings, "GROQ_API_KEY", "")
         if not api_key:
-            logger.warning("[AI OCR] No API key")
             return {}
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"Content-Type": "application/json", "x-api-key": api_key, "anthropic-version": "2023-06-01"},
-            json={
-                "model": "claude-sonnet-4-20250514",
-                "max_tokens": 500,
-                "messages": [{"role": "user", "content": prompt}]
-            },
-            timeout=15
+
+        prompt = (
+            "You are analyzing OCR text from a Kenyan National ID card.\n"
+            "OCR TEXT:\n" + str(ocr_text) + "\n\n"
+            "User claims ID: " + str(submitted_id) + ", Name: " + str(account_name) + "\n\n"
+            "Return ONLY valid JSON, nothing else:\n"
+            '{"id_number": "7-8 digit number or null", "full_name": "full name or null", '
+            '"date_of_birth": "DD.MM.YYYY or null", "gender": "MALE or FEMALE or null"}\n\n'
+            "Fix OCR errors: O->0, I->1. Never guess. Return null if unsure."
         )
-        
+
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": "Bearer " + api_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.1,
+                "max_tokens": 200,
+            },
+            timeout=30,
+        )
+
         if response.status_code == 200:
-            import json, re
-            content = response.json()["content"][0]["text"]
-            # Extract JSON from response
-            json_match = re.search(r"\{.*\}", content, re.DOTALL)
-            if json_match:
-                result = json.loads(json_match.group())
-                logger.info(f"[AI OCR] Extracted: {result}")
+            text = response.json()["choices"][0]["message"]["content"]
+            match = _re.search(r"\{[^{}]+\}", text)
+            if match:
+                result = json.loads(match.group())
+                logger.info("[Groq OCR] " + str(result))
                 return result
+        else:
+            logger.warning("[Groq OCR] Status " + str(response.status_code))
     except Exception as e:
-        logger.warning(f"[AI OCR] Failed: {e}")
-    
+        logger.warning("[Groq OCR] Failed: " + str(e))
     return {}
 
 
-def extract_fields_with_gemini(image_path: str, submitted_id: str = "", account_name: str = "") -> dict:
+def extract_fields_with_gemini(image_path, submitted_id="", account_name=""):
     """Use Gemini Vision to extract ID fields directly from image."""
     try:
-        import requests, base64, json, re
-        from django.conf import settings as _s
-        api_key = getattr(_s, "GEMINI_API_KEY", "")
+        import requests
+        import base64
+        import json
+        import re as _re
+        from django.conf import settings
+        api_key = getattr(settings, "GEMINI_API_KEY", "")
         if not api_key:
+            return {}
+        if not image_path or not os.path.exists(image_path):
             return {}
 
         with open(image_path, "rb") as f:
             img_b64 = base64.b64encode(f.read()).decode()
 
-        prompt = f"""This is a Kenyan National Identity Card photo.
-Extract these fields and return ONLY valid JSON:
-{{
-  "id_number": "7 or 8 digit number only, no letters",
-  "full_name": "full name as shown",
-  "date_of_birth": "DD.MM.YYYY format",
-  "gender": "MALE or FEMALE",
-  "confidence": "HIGH or MEDIUM or LOW"
-}}
-
-User claims ID: {submitted_id}, Name: {account_name}
-If a field is unclear return null. Never guess."""
+        prompt = (
+            "This is a Kenyan National Identity Card photo.\n"
+            "Extract these fields and return ONLY valid JSON:\n"
+            '{"id_number": "7 or 8 digit number only", "full_name": "full name", '
+            '"date_of_birth": "DD.MM.YYYY", "gender": "MALE or FEMALE"}\n'
+            "User claims ID: " + str(submitted_id) + ", Name: " + str(account_name) + "\n"
+            "If a field is unclear return null. Never guess."
+        )
 
         response = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + api_key,
             headers={"Content-Type": "application/json"},
             json={
                 "contents": [{
@@ -540,20 +557,20 @@ If a field is unclear return null. Never guess."""
                     ]
                 }]
             },
-            timeout=20
+            timeout=20,
         )
 
         if response.status_code == 200:
             text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-            json_match = re.search(r"\{.*\}", text, re.DOTALL)
-            if json_match:
-                result = json.loads(json_match.group())
-                logger.info(f"[Gemini OCR] {result}")
+            match = _re.search(r"\{[^{}]+\}", text)
+            if match:
+                result = json.loads(match.group())
+                logger.info("[Gemini OCR] " + str(result))
                 return result
         else:
-            logger.warning(f"[Gemini OCR] {response.status_code}: {response.text[:100]}")
+            logger.warning("[Gemini OCR] Status " + str(response.status_code) + ": " + response.text[:100])
     except Exception as e:
-        logger.warning(f"[Gemini OCR] Failed: {e}")
+        logger.warning("[Gemini OCR] Failed: " + str(e))
     return {}
 
 
@@ -568,7 +585,7 @@ def verify_id_document(
     result = IDVerificationResult(passed=False)
 
     try:
-        ocr_text        = extract_text_from_id(image_file)
+        ocr_text = extract_text_from_id(image_file)
         result.ocr_text = ocr_text
     except Exception as e:
         result.failures.append(f"OCR engine error: {e}")
@@ -580,38 +597,100 @@ def verify_id_document(
         result.failures.append("OCR returned no usable text")
         return result
 
-    result.extracted_id     = extract_id_number(ocr_text)
-    result.extracted_name   = extract_name(ocr_text)
-    result.extracted_dob    = extract_dob(ocr_text)
+    result.extracted_id = extract_id_number(ocr_text)
+    result.extracted_name = extract_name(ocr_text)
+    result.extracted_dob = extract_dob(ocr_text)
     result.extracted_gender = extract_gender(ocr_text)
 
-    # If regex failed, try Gemini Vision fallback
+    # 1. Spatial Search Check (Kenyan ID layout specific)
+    try:
+        import cv2
+        import numpy as np
+        image_file.seek(0)
+        nparr = np.frombuffer(image_file.read(), np.uint8)
+        image_file.seek(0)
+        orig_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if orig_img is not None:
+            spatial = _extract_spatial_fields(_preprocess(orig_img))
+            if spatial.get("id_number") and not result.extracted_id:
+                result.extracted_id = spatial["id_number"]
+                result.warnings.append("ID extracted via spatial analysis.")
+            if spatial.get("surname") and not result.extracted_name:
+                # Combine with whatever given name we might have
+                gn = _next_line_value(ocr_text.upper(), "GIVEN NAME") or ""
+                result.extracted_name = f"{spatial['surname']} {gn}".strip()
+    except Exception as e:
+        logger.warning(f"Spatial extraction failed: {e}")
+
+    # 2. MRZ Cross-Verification (Most Reliable)
+    if AUTHENTICITY_AVAILABLE:
+        try:
+            from loans.id_authenticity import validate_mrz
+            mrz_res = validate_mrz(image_file, ocr_text=ocr_text)
+            if mrz_res.get("found") and mrz_res.get("valid"):
+                # Extract ID from MRZ (Kenya ID: Line 1, pos 5-13)
+                # But validate_mrz might not return it directly, so let's check
+                # For now, if MRZ is valid, we trust the document much more
+                result.warnings.append("MRZ checksums verified successfully.")
+            elif mrz_res.get("found"):
+                result.failures.append("MRZ checksum failure - document may be tampered.")
+        except Exception as e:
+            logger.warning(f"MRZ check failed: {e}")
+
+    # Groq text fallback
+    _single_word_name = result.extracted_name and len(result.extracted_name.split()) < 2
+    _bad_name = not result.extracted_name or result.extracted_name.upper().strip() in ("MEN", "MALE", "FEMALE", "KEN", "CARD", "CARO", "NONE")
+    if not result.extracted_id or _bad_name or _single_word_name:
+        logger.info("[OCR] Regex incomplete — trying Groq fallback")
+        try:
+            groq_result = extract_fields_with_groq(ocr_text, submitted_id_number, account_full_name)
+            if groq_result:
+                groq_id = str(groq_result.get("id_number") or "")
+                groq_name = groq_result.get("full_name") or ""
+
+                # If Groq found a name and it is longer than current, use it
+                if groq_name and len(groq_name.split()) > len((result.extracted_name or "").split()):
+                    result.extracted_name = groq_name
+
+                # If Groq ID matches submitted — use it
+                if groq_id and groq_id == re.sub(r"\D", "", submitted_id_number):
+                    result.extracted_id = groq_id
+                elif groq_id and not result.extracted_id:
+                    # Groq got a different number — but if name matches, trust submitted ID
+                    result.extracted_id = groq_id
+                    # Flag for review but don't hard fail
+                    result.warnings.append(
+                        f"OCR read ID as {groq_id}, submitted {submitted_id_number} — manual check recommended."
+                    )
+                if not result.extracted_dob and groq_result.get("date_of_birth"):
+                    result.extracted_dob = groq_result["date_of_birth"]
+                if not result.extracted_gender and groq_result.get("gender"):
+                    result.extracted_gender = groq_result["gender"]
+        except Exception as e:
+            logger.warning(f"[Groq fallback] {e}")
+
+    # Gemini Vision fallback
     if not result.extracted_id or not result.extracted_name:
-        logger.info("[OCR] Regex incomplete — trying Gemini Vision")
+        logger.info("[OCR] Still incomplete — trying Gemini Vision")
         try:
             from django.conf import settings as _s
-            id_disk_path = os.path.join(__import__('django.conf', fromlist=['settings']).settings.MEDIA_ROOT, str(image_file) if not hasattr(image_file, 'read') else '')
-        except Exception:
-            id_disk_path = ""
-        ai_result = extract_fields_with_gemini(id_disk_path, submitted_id_number, account_full_name) if id_disk_path and os.path.exists(id_disk_path) else {}
-        if ai_result:
-            if not result.extracted_id and ai_result.get("id_number"):
-                result.extracted_id = ai_result["id_number"]
-                logger.info(f"[AI OCR] ID: {result.extracted_id}")
-            if not result.extracted_name:
-                result.extracted_name = (
-                    ai_result.get("full_name") or
-                    " ".join(filter(None, [ai_result.get("surname"), ai_result.get("given_names")]))
-                ) or None
-                logger.info(f"[AI OCR] Name: {result.extracted_name}")
-            if not result.extracted_dob and ai_result.get("date_of_birth"):
-                result.extracted_dob = ai_result["date_of_birth"]
-            if not result.extracted_gender and ai_result.get("gender"):
-                result.extracted_gender = ai_result["gender"]
+            id_disk_path = os.path.join(_s.MEDIA_ROOT, str(image_file).lstrip("/\\"))
+            gemini_result = extract_fields_with_gemini(id_disk_path, submitted_id_number, account_full_name)
+            if gemini_result:
+                if not result.extracted_id and gemini_result.get("id_number"):
+                    result.extracted_id = str(gemini_result["id_number"])
+                if not result.extracted_name and gemini_result.get("full_name"):
+                    result.extracted_name = gemini_result["full_name"]
+                if not result.extracted_dob and gemini_result.get("date_of_birth"):
+                    result.extracted_dob = gemini_result["date_of_birth"]
+                if not result.extracted_gender and gemini_result.get("gender"):
+                    result.extracted_gender = gemini_result["gender"]
+        except Exception as e:
+            logger.warning(f"[Gemini fallback] {e}")
 
     if result.extracted_id:
-        submitted_clean        = re.sub(r"\D", "", submitted_id_number.strip())
-        extracted_clean        = re.sub(r"\D", "", result.extracted_id)
+        submitted_clean = re.sub(r"\D", "", submitted_id_number.strip())
+        extracted_clean = re.sub(r"\D", "", result.extracted_id)
         result.id_number_match = (submitted_clean == extracted_clean)
         if not result.id_number_match:
             result.failures.append(
@@ -641,7 +720,7 @@ def verify_id_document(
                 f"DOB '{result.extracted_dob}' on document"
             )
 
-    id_to_check     = result.extracted_id or re.sub(r"\D", "", submitted_id_number)
+    id_to_check = result.extracted_id or re.sub(r"\D", "", submitted_id_number)
     submitted_clean = re.sub(r"\D", "", submitted_id_number.strip())
 
     if id_to_check:

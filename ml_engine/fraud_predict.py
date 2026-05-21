@@ -30,6 +30,63 @@ class FraudResult:
     breakdown: Dict[str, float] = field(default_factory=dict)
 
 
+
+# ── ML Model ──────────────────────────────────────────────────
+_ml_model = None
+_ml_features = None
+_ML_READY = False
+
+def _load_ml():
+    global _ml_model, _ml_features, _ML_READY
+    if _ML_READY:
+        return True
+    try:
+        import joblib, os as _os
+        BASE = _os.path.dirname(_os.path.abspath(__file__))
+        _ml_model    = joblib.load(_os.path.join(BASE, "fraud_model.pkl"))
+        _ml_features = joblib.load(_os.path.join(BASE, "fraud_features.pkl"))
+        _ML_READY = True
+        return True
+    except Exception as e:
+        logger.warning(f"[Fraud ML] Load failed: {e}")
+        return False
+
+
+def _ml_fraud_score(features: dict) -> float:
+    """Get ML model fraud probability."""
+    if not _load_ml():
+        return -1.0
+    try:
+        import pandas as pd
+        income = features.get("monthly_income", 0) or 1
+        loan_amount = features.get("loan_amount", 0) or 0
+        age = features.get("age", 30) or 30
+        row = pd.DataFrame([{
+            "age": age,
+            "monthly_income": income,
+            "loan_amount": loan_amount,
+            "repayment_period": features.get("repayment_period", 12) or 12,
+            "credit_history": features.get("credit_history", 0) or 0,
+            "device_change_count": features.get("device_change_count", 0) or 0,
+            "ip_change_count": features.get("ip_change_count", 0) or 0,
+            "accounts_per_phone": features.get("accounts_per_phone", 1) or 1,
+            "recent_applications": features.get("recent_application_count", 0) or 0,
+            "id_reuse_flag": int(features.get("id_reuse_flag", False)),
+            "income_age_ratio": round(income / max(age, 1), 4),
+            "loan_income_ratio": round(loan_amount / max(income, 1), 4),
+            "night_application": features.get("night_application", 0) or 0,
+            "vpn_usage": features.get("vpn_usage", 0) or 0,
+            "failed_kyc_attempts": features.get("failed_kyc_attempts", 0) or 0,
+            "multiple_ids_flag": int(features.get("multiple_ids_flag", False)),
+            "app_completion_seconds": features.get("app_completion_seconds", 300) or 300,
+            "same_day_multiple_apps": features.get("same_day_multiple_apps", 0) or 0,
+        }])
+        return float(_ml_model.predict_proba(row)[0][1])
+    except Exception as e:
+        logger.warning(f"[Fraud ML] Prediction failed: {e}")
+        return -1.0
+
+
 def detect_fraud(features: dict) -> Tuple[float, bool, List[str]]:
     result = detect_fraud_detailed(features)
     return result.score, result.flag, result.reasons
@@ -54,6 +111,20 @@ def detect_fraud_detailed(features: dict) -> FraudResult:
         score += 0.45
         breakdown["id_reuse"] = 0.45
         reasons.append("🚨 ID number already registered on another account")
+
+    # ── 1b. ID Authenticity (MRZ & ELA) ──────────────────────────
+    mrz_valid = features.get("mrz_valid", None)
+    ela_score = features.get("ela_score", 0.0)
+
+    if mrz_valid is False:
+        score += 0.35
+        breakdown["mrz_failure"] = 0.35
+        reasons.append("🚨 MRZ checksum mismatch — potential forged ID")
+    
+    if ela_score and ela_score > 0.85:
+        score += 0.25
+        breakdown["ela_warning"] = 0.25
+        reasons.append("🚨 Image manipulation (ELA) detected on ID document")
 
     # ── 2. OCR ID verification failure ───────────────────────────
     if not ocr_verified:
@@ -149,6 +220,15 @@ def detect_fraud_detailed(features: dict) -> FraudResult:
         score -= 0.10
         breakdown["verified_bonus"] = -0.10
 
+    # ── ML model signal ──────────────────────────────────────────
+    ml_score = _ml_fraud_score(features)
+    if ml_score >= 0:
+        # Blend: 60% rules + 40% ML
+        score = score * 0.60 + ml_score * 0.40
+        breakdown["ml_fraud_score"] = round(ml_score, 4)
+        if ml_score > 0.70:
+            reasons.append(f"🤖 ML model flags high fraud probability ({ml_score:.0%})")
+
     # ── Clamp and classify ────────────────────────────────────────
     score = round(min(1.0, max(0.0, score)), 4)
 
@@ -169,3 +249,14 @@ def detect_fraud_detailed(features: dict) -> FraudResult:
         risk_level=risk_level,
         breakdown=breakdown,
     )
+
+
+
+
+
+
+
+
+
+
+

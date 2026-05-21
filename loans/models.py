@@ -37,7 +37,6 @@ class LoanApplication(models.Model):
 
     # for ai predict amount qualified
     qualified_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    interest_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
 
     id_number = models.CharField(max_length=20)
@@ -72,6 +71,8 @@ class LoanApplication(models.Model):
     id_authentic          = models.BooleanField(null=True, blank=True)
     id_authenticity_score = models.FloatField(null=True, blank=True)
     id_authenticity_notes = models.TextField(blank=True, default="")
+    mrz_valid             = models.BooleanField(null=True, blank=True)
+    ela_score             = models.FloatField(null=True, blank=True)
 
     # ✅ Keep ONE status field
     status = models.CharField(
@@ -127,12 +128,13 @@ class LoanApplication(models.Model):
     
     # prevents multiple loan applications
     def clean(self):
-     if not self.pk:  # only when creating new loan
-        if LoanApplication.objects.filter(
-            user=self.user,
-            status__in=["Pending", "Approved"]
-        ).exists():
-            raise ValidationError("User already has an active loan.")
+        if not self.pk:  # only when creating new loan
+            if LoanApplication.objects.filter(
+                user=self.user,
+                status__in=["Pending", "Approved"]
+            ).exists():
+                raise ValidationError("User already has an active loan.")
+
 
 
     def calculate_total_payable(self):
@@ -236,3 +238,28 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"[{self.created_at:%d %b %H:%M}] Loan #{self.loan_id} — {self.action} by {self.actor}"
+
+
+class SystemSettings(models.Model):
+    """Global system configuration — singleton (id=1)"""
+    loans_enabled            = models.BooleanField(default=True)
+    min_loan_amount          = models.IntegerField(default=1000)
+    max_loan_amount_new      = models.IntegerField(default=10000)
+    max_loan_amount_bronze   = models.IntegerField(default=30000)
+    max_loan_amount_silver   = models.IntegerField(default=75000)
+    max_loan_amount_gold     = models.IntegerField(default=150000)
+    max_loan_amount_platinum = models.IntegerField(default=500000)
+    min_interest_rate        = models.FloatField(default=10.0)
+    max_interest_rate        = models.FloatField(default=25.0)
+    maintenance_message      = models.TextField(blank=True)
+    updated_at               = models.DateTimeField(auto_now=True)
+    updated_by               = models.ForeignKey(
+        "auth.User", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="system_settings"
+    )
+
+    class Meta:
+        verbose_name = "System Settings"
+
+    def __str__(self):
+        return f"System Settings (loans={'ON' if self.loans_enabled else 'OFF'})"

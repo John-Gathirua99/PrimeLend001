@@ -1,11 +1,11 @@
 try:
-    import pandas
+    import pandas as pd
 except ImportError:
-    pandas = None  # not available in production as pd
+    pd = None  # not available in production as pd
 try:
-    import numpy
+    import numpy as np
 except ImportError:
-    numpy = None  # not available in production as np
+    np = None  # not available in production as np
 try:
     import joblib
 except ImportError:
@@ -18,14 +18,14 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 
 np.random.seed(42)
-N = 500
+N = 1000
 
 os.makedirs("ml_engine/model", exist_ok=True)
 os.makedirs("ml_engine/data", exist_ok=True)
 
-# ─────────────────────────────────────────────
-# 1. CREDIT TRAINING DATA — strict approval logic
-# ─────────────────────────────────────────────
+# 
+# 1. CREDIT TRAINING DATA  strict approval logic
+# 
 def generate_credit_data(n):
     ages = np.random.randint(21, 60, n)  # no teens
     monthly_income = np.random.randint(15000, 300000, n)
@@ -35,31 +35,34 @@ def generate_credit_data(n):
     on_time_repayment_count = np.array([
         np.random.randint(0, max(1, prev + 1)) for prev in previous_loan_count
     ])
-    past_default_flag = np.random.choice([0, 1], n, p=[0.65, 0.35])
-    recent_application_count = np.random.randint(0, 8, n)
-    fraud_score = np.round(np.random.beta(2, 5, n), 3)
+    past_default_flag = np.random.choice([0, 1], n, p=[0.75, 0.25])  # 25% default rate (realistic)
+    recent_application_count = np.random.randint(0, 6, n)
+    fraud_score = np.round(np.random.beta(2, 8, n), 3)  # mostly low fraud scores
 
-    qualified_amount = monthly_income * 0.4
-    debt_to_income_ratio = np.round(qualified_amount / (monthly_income + 1), 3)
+    # FIX: DTI = actual monthly debt obligations / income (not income/income)
+    monthly_debt = monthly_income * np.random.uniform(0.05, 0.60, n)  # 5–60% of income as debt
+    debt_to_income_ratio = np.round(monthly_debt / (monthly_income + 1), 3)
 
-    # STRICT score — harder to pass
+    # Balanced scoring — targets ~25-30% approval rate
+    repayment_rate = on_time_repayment_count / (previous_loan_count + 1)
     score = (
-        (credit_history * 3.0)                                          # must have good credit
-        + (on_time_repayment_count / (previous_loan_count + 1) * 2.0)  # repayment record matters
-        - (past_default_flag * 4.0)                                     # any default = heavy penalty
-        - (fraud_score * 5.0)                                           # fraud risk kills application
-        - (recent_application_count * 0.6)                              # velocity penalty
-        - (debt_to_income_ratio * 3.0)                                  # high DTI penalised
-        + (np.log1p(monthly_income) * 0.15)                             # income helps slightly
-        - 2.5                                                            # base difficulty offset
+        (credit_history * 2.0)        # good credit = strong positive
+        + (repayment_rate * 2.5)      # repayment record matters
+        - (past_default_flag * 2.5)   # default is a penalty (not death sentence)
+        - (fraud_score * 3.0)         # fraud risk penalised
+        - (recent_application_count * 0.3)  # velocity penalty
+        - (debt_to_income_ratio * 2.0)      # high DTI penalised
+        + (np.log1p(monthly_income) * 0.20) # income helps
+        - 2.8                               # base difficulty
     )
     prob = 1 / (1 + np.exp(-score))
-    # Use high threshold so only ~25-30% approved
-    approved = (prob > np.random.uniform(0.55, 0.85, n)).astype(int)
+    # Threshold targeting ~25-30% approval
+    approved = (prob > 0.50).astype(int)
 
     return pd.DataFrame({
         "age": ages,
         "monthly_income": monthly_income,
+        "loan_amount": (monthly_income * np.random.uniform(0.5, 4, n)).astype(int),
         "repayment_period": repayment_period,
         "credit_history": credit_history,
         "debt_to_income_ratio": debt_to_income_ratio,
@@ -68,6 +71,9 @@ def generate_credit_data(n):
         "on_time_repayment_count": on_time_repayment_count,
         "fraud_score": fraud_score,
         "recent_application_count": recent_application_count,
+        "kyc_face_verified": np.random.choice([0, 1], n, p=[0.2, 0.8]),
+        "ocr_id_verified": np.random.choice([0, 1], n, p=[0.15, 0.85]),
+        "id_reuse_flag": np.random.choice([0, 1], n, p=[0.92, 0.08]),
         "approved": approved,
     })
 
@@ -75,9 +81,9 @@ credit_df = generate_credit_data(N)
 credit_df.to_csv("ml_engine/data/credit_training_data.csv", index=False)
 print(f"Credit data: {N} rows | Approval rate: {credit_df['approved'].mean():.1%}")
 
-# ─────────────────────────────────────────────
-# 2. LOAN TRAINING DATA — penalise unemployed/students
-# ─────────────────────────────────────────────
+# 
+# 2. LOAN TRAINING DATA  penalise unemployed/students
+# 
 def generate_loan_data(n):
     employment_options = ["Employed", "Self-employed", "Unemployed", "Student"]
     employment_status = np.random.choice(employment_options, n, p=[0.55, 0.25, 0.12, 0.08])
@@ -120,9 +126,9 @@ loan_df = generate_loan_data(N)
 loan_df.to_csv("ml_engine/data/loan_data.csv", index=False)
 print(f"Loan data: {N} rows | Approval rate: {loan_df['approved'].mean():.1%}")
 
-# ─────────────────────────────────────────────
-# 3. FRAUD DATA — more sensitive detection
-# ─────────────────────────────────────────────
+# 
+# 3. FRAUD DATA  more sensitive detection
+# 
 def generate_fraud_data(n):
     ages = np.random.randint(18, 65, n)
     monthly_income = np.random.randint(5000, 250000, n)
@@ -160,6 +166,13 @@ def generate_fraud_data(n):
         "recent_applications": recent_applications,
         "id_reuse_flag": id_reuse_flag,
         "income_age_ratio": np.round(income_age_ratio, 2),
+        "loan_income_ratio": np.round(loan_amount / (monthly_income + 1), 2),
+        "night_application": np.random.choice([0, 1], n, p=[0.85, 0.15]),
+        "vpn_usage": np.random.choice([0, 1], n, p=[0.92, 0.08]),
+        "failed_kyc_attempts": np.random.choice([0, 1, 2], n, p=[0.75, 0.2, 0.05]),
+        "multiple_ids_flag": np.random.choice([0, 1], n, p=[0.96, 0.04]),
+        "app_completion_seconds": np.random.randint(45, 900, n),
+        "same_day_multiple_apps": np.random.choice([0, 1], n, p=[0.88, 0.12]),
         "fraud": fraud,
     })
 
@@ -167,10 +180,10 @@ fraud_df = generate_fraud_data(N)
 fraud_df.to_csv("ml_engine/data/fraud_training_data.csv", index=False)
 print(f"Fraud data: {N} rows | Fraud rate: {fraud_df['fraud'].mean():.1%}")
 
-# ─────────────────────────────────────────────
+# 
 # TRAIN: CREDIT MODEL
-# ─────────────────────────────────────────────
-print("\n── Training Credit Model ──")
+# 
+print("\n-- Training Credit Model --")
 X = credit_df.drop("approved", axis=1)
 y = credit_df["approved"]
 scaler = StandardScaler()
@@ -189,12 +202,12 @@ print(classification_report(y_test, preds))
 joblib.dump(credit_model, "ml_engine/credit_model.pkl")
 joblib.dump(scaler, "ml_engine/credit_scaler.pkl")
 joblib.dump(list(X.columns), "ml_engine/credit_features.pkl")
-print("✅ Credit model saved")
+print("(Success) Credit model saved")
 
-# ─────────────────────────────────────────────
+# 
 # TRAIN: LOAN MODEL
-# ─────────────────────────────────────────────
-print("\n── Training Loan Model ──")
+# 
+print("\n-- Training Loan Model --")
 le = LabelEncoder()
 loan_df["employment_status"] = le.fit_transform(loan_df["employment_status"])
 X = loan_df.drop("approved", axis=1)
@@ -213,12 +226,12 @@ print(classification_report(y_test, preds))
 
 joblib.dump(loan_model, "ml_engine/model/loan_model.pkl")
 joblib.dump(le, "ml_engine/model/employment_encoder.pkl")
-print("✅ Loan model saved")
+print("(Success) Loan model saved")
 
-# ─────────────────────────────────────────────
+# 
 # TRAIN: FRAUD MODEL
-# ─────────────────────────────────────────────
-print("\n── Training Fraud Model ──")
+# 
+print("\n-- Training Fraud Model --")
 X = fraud_df.drop("fraud", axis=1)
 y = fraud_df["fraud"]
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -239,6 +252,6 @@ with open("ml_engine/fraud_feature_importance.json", "w") as f:
 
 joblib.dump(fraud_model, "ml_engine/fraud_model.pkl")
 joblib.dump(list(X.columns), "ml_engine/fraud_features.pkl")
-print("✅ Fraud model saved")
+print("(Success) Fraud model saved")
 
-print("\n✅ All strict models trained successfully.")
+print("\n(Success) All strict models trained successfully.")
