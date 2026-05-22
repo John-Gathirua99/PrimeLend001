@@ -19,3 +19,8 @@ RUN python manage.py collectstatic --noinput
 
 EXPOSE 3000
 CMD ["sh", "-lc", "gunicorn Ai_Loan_System.wsgi:application --bind 0.0.0.0:$PORT --workers 2"]
+
+
+
+git commit -m "Fix Render/Docker deployment"
+git push origin main
