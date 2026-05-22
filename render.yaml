@@ -12,3 +12,7 @@ services:
 
 
 
+
+
+git commit -m "Fix Docker collectstatic PYTHONPATH for Render deployment"
+git push origin main
