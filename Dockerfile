@@ -22,5 +22,3 @@ CMD ["sh", "-lc", "gunicorn Ai_Loan_System.wsgi:application --bind 0.0.0.0:$PORT
 
 
 
-git commit -m "Fix Render/Docker deployment"
-git push origin main
