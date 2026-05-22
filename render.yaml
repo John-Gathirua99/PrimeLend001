@@ -1,10 +1,9 @@
 services:
   - type: web
     name: ai-loan-system
-    env: python
+    env: docker
     plan: free
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: gunicorn Ai_Loan_System.wsgi:application --bind 0.0.0.0:$PORT
+    dockerfilePath: Dockerfile
     autoDeploy: true
 
 
